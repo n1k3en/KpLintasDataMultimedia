@@ -20,105 +20,105 @@
    ============================================ */
 
 :root {
-  /* ====== Material Design 3 Color Tokens ====== */
-  --md-surface-bright: #f8f9fa;
-  --md-primary-fixed: #a2efff;
-  --md-tertiary-fixed: #dbe4ed;
-  --md-secondary-fixed-dim: #99cbff;
-  --md-surface-dim: #d9dadb;
-  --md-on-error-container: #93000a;
+  /* ====== Material Design 3 & Enterprise Palette Tokens ====== */
+  --md-surface-bright: #ffffff;
+  --md-primary-fixed: #e0f2fe;
+  --md-tertiary-fixed: #f1f5f9;
+  --md-secondary-fixed-dim: #bae6fd;
+  --md-surface-dim: #f1f5f9;
+  --md-on-error-container: #991b1b;
   --md-on-primary: #ffffff;
-  --md-on-surface-variant: #3d494b;
-  --md-tertiary-container: #8d969e;
-  --md-outline-variant: #bcc9cc;
-  --md-outline: #6d797c;
-  --md-primary-fixed-dim: #61d6ec;
-  --md-tertiary-fixed-dim: #bfc8d0;
+  --md-on-surface-variant: #475569;
+  --md-tertiary-container: #e2e8f0;
+  --md-outline-variant: #cbd5e1;
+  --md-outline: #94a3b8;
+  --md-primary-fixed-dim: #38bdf8;
+  --md-tertiary-fixed-dim: #cbd5e1;
   --md-on-tertiary: #ffffff;
-  --md-surface-variant: #e1e3e4;
-  --md-on-secondary-fixed: #001d34;
-  --md-on-secondary-container: #145483;
-  --md-on-secondary-fixed-variant: #004a78;
-  --md-tertiary: #575f67;
-  --md-on-surface: #191c1d;
-  --md-on-tertiary-fixed: #141d23;
-  --md-surface: #f8f9fa;
+  --md-surface-variant: #f8fafc;
+  --md-on-secondary-fixed: #075985;
+  --md-on-secondary-container: #0369a1;
+  --md-on-secondary-fixed-variant: #0c4a6e;
+  --md-tertiary: #64748b;
+  --md-on-surface: #0f172a;
+  --md-on-tertiary-fixed: #1e293b;
+  --md-surface: #ffffff;
   --md-on-primary-container: #00333a;
-  --md-secondary-container: #94c8fe;
-  --md-primary-container: #14a3b8;
-  --md-on-tertiary-container: #262f35;
+  --md-secondary-container: #e0f2fe;
+  --md-primary-container: #006876;
+  --md-on-tertiary-container: #334155;
   --md-on-secondary: #ffffff;
   --md-surface-tint: #006876;
-  --md-error: #ba1a1a;
-  --md-inverse-primary: #61d6ec;
-  --md-surface-container-highest: #e1e3e4;
-  --md-surface-container: #edeeef;
-  --md-on-primary-fixed-variant: #004e5a;
+  --md-error: #dc2626;
+  --md-inverse-primary: #38bdf8;
+  --md-surface-container-highest: #f1f5f9;
+  --md-surface-container: #f8fafc;
+  --md-on-primary-fixed-variant: #0369a1;
   --md-surface-container-lowest: #ffffff;
-  --md-on-background: #191c1d;
+  --md-on-background: #0f172a;
   --md-on-error: #ffffff;
-  --md-secondary: #286292;
-  --md-inverse-on-surface: #f0f1f2;
+  --md-secondary: #0284c7;
+  --md-inverse-on-surface: #f8fafc;
   --md-primary: #006876;
-  --md-on-tertiary-fixed-variant: #3f484f;
-  --md-on-primary-fixed: #001f25;
-  --md-inverse-surface: #2e3132;
-  --md-surface-container-high: #e7e8e9;
-  --md-secondary-fixed: #cfe5ff;
-  --md-surface-container-low: #f3f4f5;
-  --md-error-container: #ffdad6;
-  --md-background: #f8f9fa;
+  --md-on-tertiary-fixed-variant: #475569;
+  --md-on-primary-fixed: #0c4a6e;
+  --md-inverse-surface: #1e293b;
+  --md-surface-container-high: #f1f5f9;
+  --md-secondary-fixed: #e0f2fe;
+  --md-surface-container-low: #f8fafc;
+  --md-error-container: #fee2e2;
+  --md-background: #f8fafc;
 
-  /* ====== Semantic Aliases (backwards-compat for admin dashboard) ====== */
+  /* ====== Semantic Aliases ====== */
   --primary: #006876;
-  --primary-light: #14a3b8;
+  --primary-light: #0891b2;
   --primary-dark: #004e5a;
-  --primary-glow: rgba(0, 104, 118, 0.12);
+  --primary-glow: rgba(0, 104, 118, 0.08);
 
-  --bg-primary: #f8f9fa;
-  --bg-secondary: #f3f4f5;
-  --bg-tertiary: #edeeef;
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
   --bg-card: #ffffff;
-  --bg-card-hover: #f8fbfc;
+  --bg-card-hover: #f8fafc;
   --bg-input: #ffffff;
 
-  --text-primary: #191c1d;
-  --text-secondary: #3d494b;
-  --text-muted: #6d797c;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
   --text-inverse: #ffffff;
 
-  /* Status Colors — PRESERVED from original (semantic meaning unchanged) */
-  --status-hijau: #0f9d5b;
-  --status-hijau-bg: rgba(15, 157, 91, 0.12);
-  --status-kuning: #b7791f;
-  --status-kuning-bg: rgba(183, 121, 31, 0.12);
-  --status-merah: #ba1a1a;
-  --status-merah-bg: rgba(186, 26, 26, 0.12);
-  --status-abu: #6d797c;
-  --status-abu-bg: rgba(109, 121, 124, 0.12);
+  /* Status Colors — PRESERVED semantic meaning */
+  --status-hijau: #10b981;
+  --status-hijau-bg: rgba(16, 185, 129, 0.1);
+  --status-kuning: #f59e0b;
+  --status-kuning-bg: rgba(245, 158, 11, 0.1);
+  --status-merah: #ef4444;
+  --status-merah-bg: rgba(239, 68, 68, 0.1);
+  --status-abu: #64748b;
+  --status-abu-bg: rgba(100, 116, 139, 0.1);
 
-  --accent-cyan: #61d6ec;
-  --accent-purple: #286292;
-  --accent-pink: #8d969e;
+  --accent-cyan: #06b6d4;
+  --accent-purple: #0284c7;
+  --accent-pink: #94a3b8;
 
-  --border-color: #e1e3e4;
-  --border-color-light: #bcc9cc;
+  --border-color: #e2e8f0;
+  --border-color-light: #f1f5f9;
 
-  /* Shadows — from code.html */
-  --shadow-sm: 0 1px 3px rgba(25, 28, 29, 0.06);
-  --shadow-md: 0px 4px 20px rgba(0, 75, 122, 0.08);
-  --shadow-lg: 0 18px 36px rgba(25, 28, 29, 0.10);
-  --shadow-glow: 0 0 18px rgba(0, 104, 118, 0.12);
+  /* Shadows — Modern enterprise elevation */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.03);
+  --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.03);
+  --shadow-glow: 0 0 20px rgba(0, 104, 118, 0.12);
 
-  /* Radius — from code.html */
-  --radius-sm: 5px;
-  --radius-md: 5px;
-  --radius-lg: 5px;
-  --radius-xl: 5px;
-  --radius-2xl: 5px;
-  --radius-full: 5px;
+  /* Radius — All set to 8px / 8% per user request */
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-full: 8px;
 
-  /* Spacing — from code.html */
+  /* Spacing */
   --stack-sm: 8px;
   --stack-md: 16px;
   --stack-lg: 32px;

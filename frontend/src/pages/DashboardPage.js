@@ -3,7 +3,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import StatRing from '../components/dashboard/StatRing';
 import IncomeSpendCard from '../components/dashboard/IncomeSpendCard';
-import PaymentTrendChart from '../components/dashboard/PaymentTrendChart';
+import CustomerMap from '../components/dashboard/CustomerMap';
 import TodayPaymentSummary from '../components/dashboard/TodayPaymentSummary';
 import { Link } from 'react-router-dom';
 
@@ -315,30 +315,40 @@ function DashboardPage({ socket }) {
           display: flex;
           flex-direction: column;
           gap: 24px;
-          margin-top: -50px; /* Offset overlapping cards upward onto the hero banner */
+          margin-top: 0;
           position: relative;
           z-index: 10;
         }
 
         .dashboard-hero-atlantis {
-          background: var(--primary-dark);
-          border-radius: 0;
-          margin-left: -32px;
-          margin-right: -32px;
-          margin-top: -28px;
-          padding: 40px 48px 90px 48px; /* High bottom padding for cards overlay */
+          background: linear-gradient(135deg, #004e5a 0%, #006876 100%);
+          border-radius: var(--radius-xl);
+          margin-bottom: 24px;
+          padding: 28px 32px;
           color: white;
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 20px;
           flex-wrap: wrap;
-          margin-bottom: 0px;
-          box-shadow: var(--shadow-md);
+          box-shadow: 0 10px 25px -5px rgba(0, 78, 90, 0.25);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .dashboard-hero-atlantis::after {
+          content: '';
+          position: absolute;
+          right: -40px;
+          top: -40px;
+          width: 220px;
+          height: 220px;
+          background: radial-gradient(circle, rgba(255, 255, 255, 0.15), transparent 70%);
+          pointer-events: none;
         }
 
         .dashboard-hero-atlantis h1 {
-          font-size: 2.1rem;
+          font-size: 1.75rem;
           font-weight: 800;
           color: #ffffff;
           margin-bottom: 6px;
@@ -346,10 +356,10 @@ function DashboardPage({ socket }) {
         }
 
         .dashboard-hero-atlantis p {
-          color: rgba(255, 255, 255, 0.82);
-          max-width: 600px;
+          color: rgba(255, 255, 255, 0.88);
+          max-width: 620px;
           line-height: 1.5;
-          font-size: 0.95rem;
+          font-size: 0.9rem;
         }
 
         .overlapping-grid-cards {
@@ -685,13 +695,12 @@ function DashboardPage({ socket }) {
           />
         </div>
 
-        {/* Area Chart & Solid Today Summary Grid */}
+        {/* Customer WiFi Map & Solid Today Summary Grid */}
         <div className="trend-summary-grid">
-          <PaymentTrendChart
-            data={dailyTrend}
-            loading={loadingReports}
-            onExport={handleExportExcel}
-            onPrint={window.print}
+          <CustomerMap
+            customers={customers}
+            pppoeSummary={pppoeSummary}
+            loading={loading}
           />
           <TodayPaymentSummary
             value={todayPaymentsSum}

@@ -17,12 +17,15 @@ function PelangganPage({ socket }) {
   var [formData, setFormData] = useState({
     nama: '',
     alamat: '',
+    latitude: '',
+    longitude: '',
     no_hp: '',
     email: '',
     paket: '',
     pppoe_username: '',
     due_date: ''
   });
+  var [geocodingLoading, setGeocodingLoading] = useState(false);
   var [formError, setFormError] = useState('');
   var [searchQuery, setSearchQuery] = useState('');
 
@@ -97,7 +100,7 @@ function PelangganPage({ socket }) {
 
   function openAddModal() {
     setFormData({
-      nama: '', alamat: '', no_hp: '', email: '', paket: '', pppoe_username: '', due_date: ''
+      nama: '', alamat: '', latitude: '', longitude: '', no_hp: '', email: '', paket: '', pppoe_username: '', due_date: ''
     });
     setFormError('');
     setEditMode(false);
@@ -110,6 +113,8 @@ function PelangganPage({ socket }) {
     setFormData({
       nama: item.nama || '',
       alamat: item.alamat || '',
+      latitude: item.latitude || '',
+      longitude: item.longitude || '',
       no_hp: item.no_hp || '',
       email: item.email || '',
       paket: item.paket || '',
@@ -121,6 +126,44 @@ function PelangganPage({ socket }) {
     setEditId(item.id_pelanggan);
     fetchPppoeSecrets();
     setShowModal(true);
+  }
+
+  async function handleGeocodeAddress() {
+    if (!formData.alamat || !formData.alamat.trim()) {
+      setFormError('Isi alamat terlebih dahulu sebelum melakukan geocoding.');
+      return;
+    }
+    setGeocodingLoading(true);
+    setFormError('');
+
+    try {
+      var queryText = formData.alamat.trim() + ', Pringsewu, Lampung, Indonesia';
+      var res = await axios.get('https://nominatim.openstreetmap.org/search', {
+        params: { format: 'json', q: queryText, limit: 1 }
+      });
+
+      if (res.data && res.data.length > 0) {
+        var lat = parseFloat(res.data[0].lat).toFixed(6);
+        var lon = parseFloat(res.data[0].lon).toFixed(6);
+        setFormData(prev => ({ ...prev, latitude: lat, longitude: lon }));
+      } else {
+        // Retry with just Pringsewu
+        var resRetry = await axios.get('https://nominatim.openstreetmap.org/search', {
+          params: { format: 'json', q: 'Pringsewu, Lampung, Indonesia', limit: 1 }
+        });
+        if (resRetry.data && resRetry.data.length > 0) {
+          var latR = parseFloat(resRetry.data[0].lat).toFixed(6);
+          var lonR = parseFloat(resRetry.data[0].lon).toFixed(6);
+          setFormData(prev => ({ ...prev, latitude: latR, longitude: lonR }));
+        } else {
+          setFormError('Lokasi alamat tidak ditemukan. Silakan masukkan koordinat Latitude & Longitude secara manual.');
+        }
+      }
+    } catch (err) {
+      setFormError('Gagal mengambil koordinat geocoding: ' + err.message);
+    } finally {
+      setGeocodingLoading(false);
+    }
   }
 
   function handleChange(e) {
@@ -407,14 +450,47 @@ function PelangganPage({ socket }) {
             />
           </div>
           <div className="form-group">
-            <label>Alamat</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ margin: 0 }}>Alamat Pemasangan WiFi</label>
+              <button
+                type="button"
+                onClick={handleGeocodeAddress}
+                disabled={geocodingLoading}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.74rem', padding: '2px 8px' }}
+              >
+                {geocodingLoading ? 'Memuat GPS...' : '📍 Auto GPS dari Alamat'}
+              </button>
+            </div>
             <textarea
               name="alamat"
               placeholder="Alamat lengkap pelanggan"
               value={formData.alamat}
               onChange={handleChange}
-              rows={3}
+              rows={2}
             />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Latitude (GPS)</label>
+              <input
+                type="text"
+                name="latitude"
+                placeholder="Contoh: -5.358700"
+                value={formData.latitude}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="form-group">
+              <label>Longitude (GPS)</label>
+              <input
+                type="text"
+                name="longitude"
+                placeholder="Contoh: 104.974400"
+                value={formData.longitude}
+                onChange={handleChange}
+              />
+            </div>
           </div>
           <div className="form-row">
             <div className="form-group">

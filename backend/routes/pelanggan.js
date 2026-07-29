@@ -62,7 +62,7 @@ router.get('/:id', function(req, res) {
 
 /* POST /api/pelanggan - Tambah pelanggan baru */
 router.post('/', async function(req, res) {
-  var { nama, alamat, no_hp, email, pppoe_username, paket, due_date } = req.body;
+  var { nama, alamat, latitude, longitude, no_hp, email, pppoe_username, paket, due_date } = req.body;
   var MikrotikService = require('../services/mikrotik');
 
   if (!nama || !no_hp) {
@@ -115,6 +115,8 @@ router.post('/', async function(req, res) {
       Pelanggan.create({
         nama: nama,
         alamat: alamat,
+        latitude: latitude,
+        longitude: longitude,
         no_hp: no_hp,
         email: email ? email.trim().toLowerCase() : null,
         pppoe_username: pppoe_username || '',

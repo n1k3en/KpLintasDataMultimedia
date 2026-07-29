@@ -101,102 +101,129 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
       left: collapsed ? 'var(--sidebar-collapsed)' : 'var(--sidebar-width)',
       right: 0,
       height: 'var(--topbar-height)',
-      background: 'var(--primary-dark)',
-      borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+      background: 'rgba(255, 255, 255, 0.85)',
+      backdropFilter: 'blur(16px)',
+      WebkitBackdropFilter: 'blur(16px)',
+      borderBottom: '1px solid var(--border-color)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 24px',
+      padding: '0 28px',
       zIndex: 90,
       transition: 'left var(--transition-normal)',
-      fontFamily: "'Hanken Grotesk', sans-serif",
-      color: '#ffffff'
+      fontFamily: "'Hanken Grotesk', -apple-system, sans-serif",
+      color: 'var(--text-primary)',
+      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.03)'
     }}>
       {/* Left side: Hamburger and brand/info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <button 
           onClick={onToggleSidebar}
           style={{
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: 'none',
-            color: 'white',
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-secondary)',
+            width: '36px',
+            height: '36px',
+            borderRadius: '8px',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background 0.2s ease'
+            transition: 'all 0.2s ease'
           }}
-          onMouseEnter={function(e) { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'; }}
-          onMouseLeave={function(e) { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
+          onMouseEnter={function(e) { 
+            e.currentTarget.style.background = 'var(--bg-card-hover)'; 
+            e.currentTarget.style.color = 'var(--text-primary)';
+          }}
+          onMouseLeave={function(e) { 
+            e.currentTarget.style.background = 'var(--bg-tertiary)'; 
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '1.4rem' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>
             {collapsed ? 'menu' : 'menu_open'}
           </span>
         </button>
-        <span style={{ fontSize: '1.05rem', fontWeight: '700', letterSpacing: '-0.01em', opacity: 0.95 }}>
-          Enhanced Service Platform
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '0.98rem', fontWeight: '800', letterSpacing: '-0.01em', color: 'var(--text-primary)' }}>
+            Lintas Data Multimedia
+          </span>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+            Enhanced Service Platform
+          </span>
+        </div>
       </div>
 
       {/* Middle: Search bar */}
-      <div style={{ display: 'flex', flex: 1, maxWidth: '400px', margin: '0 20px', position: 'relative' }}>
+      <div style={{ display: 'flex', flex: 1, maxWidth: '420px', margin: '0 24px', position: 'relative' }}>
         <span className="material-symbols-outlined" style={{
           position: 'absolute',
           left: '14px',
           top: '50%',
           transform: 'translateY(-50%)',
-          color: 'rgba(255,255,255,0.6)',
-          fontSize: '1.2rem',
+          color: 'var(--text-muted)',
+          fontSize: '1.15rem',
           pointerEvents: 'none'
         }}>
           search
         </span>
         <input
           type="text"
-          placeholder="Cari pelanggan, tagihan, atau ID..."
+          placeholder="Cari pelanggan, tagihan, atau IP Mikrotik..."
           style={{
-            background: 'rgba(255, 255, 255, 0.15)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '30px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '24px',
             padding: '8px 16px 8px 40px',
             fontSize: '0.85rem',
-            color: 'white',
+            color: 'var(--text-primary)',
             width: '100%',
             outline: 'none',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.2s ease'
           }}
           onFocus={function(e) {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px rgba(255,255,255,0.2)';
+            e.currentTarget.style.background = '#ffffff';
+            e.currentTarget.style.borderColor = 'var(--primary)';
+            e.currentTarget.style.boxShadow = '0 0 0 3px var(--primary-glow)';
           }}
           onBlur={function(e) {
-            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+            e.currentTarget.style.background = 'var(--bg-tertiary)';
+            e.currentTarget.style.borderColor = 'var(--border-color)';
             e.currentTarget.style.boxShadow = 'none';
           }}
         />
       </div>
 
       {/* Right side actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         {/* Mail Icon */}
         <Link 
           to="/dashboard/reminder-logs" 
           style={{
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            width: '36px',
+            height: '36px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'color 0.2s ease'
+            transition: 'all 0.2s ease'
           }}
-          onMouseEnter={function(e) { e.currentTarget.style.color = '#ffffff'; }}
-          onMouseLeave={function(e) { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)'; }}
+          onMouseEnter={function(e) { 
+            e.currentTarget.style.background = '#ffffff'; 
+            e.currentTarget.style.color = 'var(--primary)';
+          }}
+          onMouseLeave={function(e) { 
+            e.currentTarget.style.background = 'var(--bg-tertiary)'; 
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
           title="Reminder Log"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '1.4rem' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
             mail
           </span>
         </Link>
@@ -206,18 +233,29 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
           <div 
             onClick={function() { setNotifOpen(!notifOpen); setProfileOpen(false); }}
             style={{
-              color: 'rgba(255, 255, 255, 0.85)',
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              width: '36px',
+              height: '36px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               position: 'relative',
-              transition: 'color 0.2s ease'
+              transition: 'all 0.2s ease'
             }}
-            onMouseEnter={function(e) { e.currentTarget.style.color = '#ffffff'; }}
-            onMouseLeave={function(e) { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)'; }}
+            onMouseEnter={function(e) { 
+              e.currentTarget.style.background = '#ffffff'; 
+              e.currentTarget.style.color = 'var(--primary)';
+            }}
+            onMouseLeave={function(e) { 
+              e.currentTarget.style.background = 'var(--bg-tertiary)'; 
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '1.4rem' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
               notifications
             </span>
             {unreadCount > 0 && (
@@ -227,15 +265,15 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
                 right: '-4px',
                 background: 'var(--status-merah)',
                 color: 'white',
-                fontSize: '0.65rem',
-                fontWeight: '700',
+                fontSize: '0.62rem',
+                fontWeight: '800',
                 borderRadius: '50%',
-                width: '15px',
-                height: '15px',
+                width: '16px',
+                height: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '2px solid var(--primary-dark)'
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
               }}>
                 {unreadCount}
               </span>
@@ -394,24 +432,35 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
         <Link 
           to="/dashboard/laporan" 
           style={{
-            color: 'rgba(255, 255, 255, 0.85)',
+            color: 'var(--text-secondary)',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+            width: '36px',
+            height: '36px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            transition: 'color 0.2s ease'
+            transition: 'all 0.2s ease'
           }}
-          onMouseEnter={function(e) { e.currentTarget.style.color = '#ffffff'; }}
-          onMouseLeave={function(e) { e.currentTarget.style.color = 'rgba(255, 255, 255, 0.85)'; }}
+          onMouseEnter={function(e) { 
+            e.currentTarget.style.background = '#ffffff'; 
+            e.currentTarget.style.color = 'var(--primary)';
+          }}
+          onMouseLeave={function(e) { 
+            e.currentTarget.style.background = 'var(--bg-tertiary)'; 
+            e.currentTarget.style.color = 'var(--text-secondary)';
+          }}
           title="Laporan & Ringkasan"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '1.4rem' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
             apps
           </span>
         </Link>
 
         {/* Vertical Separator */}
-        <span style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+        <span style={{ width: '1px', height: '22px', background: 'var(--border-color)', margin: '0 2px' }} />
 
         {/* Admin profile user dropdown */}
         <div ref={profileRef} style={{ position: 'relative' }}>
@@ -422,32 +471,33 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
               alignItems: 'center',
               gap: '10px',
               cursor: 'pointer',
-              padding: '4px 8px',
-              borderRadius: '30px',
-              transition: 'background 0.2s ease'
+              padding: '4px 10px 4px 4px',
+              borderRadius: '24px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-tertiary)',
+              transition: 'all 0.2s ease'
             }}
-            onMouseEnter={function(e) { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'; }}
-            onMouseLeave={function(e) { e.currentTarget.style.background = 'transparent'; }}
+            onMouseEnter={function(e) { e.currentTarget.style.background = '#ffffff'; }}
+            onMouseLeave={function(e) { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
           >
             <div style={{
-              width: '36px',
-              height: '36px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
-              background: '#ffffff',
-              color: 'var(--primary)',
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%)',
+              color: '#ffffff',
               fontWeight: '700',
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '2px solid rgba(255,255,255,0.3)',
-              boxShadow: 'var(--shadow-sm)'
+              boxShadow: '0 2px 4px rgba(0, 104, 118, 0.2)'
             }}>
               {getInitials(admin ? admin.nama : 'Admin')}
             </div>
-            <div style={{ display: 'none', flexDirection: 'column', textAlign: 'left' }} className="desktop-only-flex">
-              <span style={{ fontSize: '0.8rem', fontWeight: '700' }}>{admin ? admin.nama : 'Admin LDM'}</span>
-              <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.7)', textTransform: 'capitalize' }}>{admin ? admin.role : 'Admin'}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }} className="desktop-only-flex">
+              <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--text-primary)' }}>{admin ? admin.nama : 'Admin LDM'}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)', textTransform: 'capitalize', fontWeight: '600' }}>{admin ? admin.role : 'Administrator'}</span>
             </div>
           </div>
 
