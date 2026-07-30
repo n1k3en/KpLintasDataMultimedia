@@ -74,7 +74,11 @@ function MikrotikPage({ socket }) {
           <h1>Integrasi Mikrotik</h1>
           <p>Pantau status koneksi router dan active sessions PPPoE secara real-time.</p>
         </div>
-        <button className="btn btn-secondary" onClick={refreshActive} disabled={loading}>
+        <button className="btn btn-primary" onClick={refreshActive} disabled={loading} style={{
+          background: 'var(--md-primary-fixed)',
+          color: 'var(--md-on-primary-fixed-variant)',
+          fontWeight: '700'
+        }}>
           <TemplateIcon name="refresh" size={16} style={{ marginRight: '6px' }} /> Refresh Data
         </button>
       </div>

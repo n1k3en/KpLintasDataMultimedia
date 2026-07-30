@@ -203,7 +203,11 @@ function LaporanPage() {
             onChange={function (e) { setPeriode(e.target.value); }}
             style={{ width: '160px', padding: '10px', fontSize: '0.9rem', borderRadius: '5px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
           />
-          <button className="btn btn-primary" onClick={handleExportExcel} disabled={loading}>
+          <button className="btn btn-primary" onClick={handleExportExcel} disabled={loading} style={{
+            background: 'var(--md-primary-fixed)',
+            color: 'var(--md-on-primary-fixed-variant)',
+            fontWeight: '700'
+          }}>
             <TemplateIcon name="document" size={16} style={{ marginRight: '6px' }} /> Export Excel
           </button>
         </div>
