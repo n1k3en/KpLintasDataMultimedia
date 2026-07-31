@@ -70,8 +70,21 @@ app.use('/api/notifikasi', notifikasiRouter);
 app.use('/api/pengaturan', pengaturanRouter);
 
 // Start Cron Service
+var fs = require('fs');
 var cronService = require('./services/cronService');
 cronService.start();
+
+// Serve React production build if available
+var frontendBuildPath = path.join(__dirname, '../frontend/build');
+if (fs.existsSync(frontendBuildPath)) {
+  app.use(express.static(frontendBuildPath));
+  app.get('*', function (req, res, next) {
+    if (req.originalUrl.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
+}
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

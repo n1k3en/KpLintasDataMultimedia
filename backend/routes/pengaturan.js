@@ -153,4 +153,112 @@ router.delete('/logo', function (req, res) {
   });
 });
 
+var ConfigService = require('../services/configService');
+var MikrotikService = require('../services/mikrotik');
+var EmailService = require('../services/emailService');
+
+/* GET /api/pengaturan/config - Get all system configurations */
+router.get('/config', function (req, res) {
+  var configs = ConfigService.getAll();
+  res.json({
+    success: true,
+    data: configs
+  });
+});
+
+/* POST /api/pengaturan/config - Save system configurations */
+router.post('/config', async function (req, res) {
+  try {
+    var settings = req.body;
+    if (!settings || typeof settings !== 'object') {
+      return res.status(400).json({ success: false, message: 'Payload konfigurasi tidak valid.' });
+    }
+
+    await ConfigService.setMany(settings);
+    res.json({
+      success: true,
+      message: 'Konfigurasi sistem berhasil disimpan!',
+      data: ConfigService.getAll()
+    });
+  } catch (err) {
+    console.error('[Pengaturan] Error saving config:', err.message);
+    res.status(500).json({ success: false, message: 'Gagal menyimpan konfigurasi: ' + err.message });
+  }
+});
+
+/* POST /api/pengaturan/test-mikrotik - Test Mikrotik API Connection */
+router.post('/test-mikrotik', async function (req, res) {
+  try {
+    var { host, port, user, pass } = req.body;
+    var customConfig = (host && user && pass) ? { host, port, user, pass } : null;
+    var result = await MikrotikService.ping(customConfig);
+
+    if (result.online) {
+      res.json({
+        success: true,
+        message: `Koneksi ke Router Mikrotik sukses! (Board: ${result.board}, RouterOS: ${result.version})`,
+        data: result
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: `Gagal terhubung ke Router Mikrotik: ${result.error || 'Unknown error'}`
+      });
+    }
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: `Error koneksi Mikrotik: ${err.message}`
+    });
+  }
+});
+
+/* POST /api/pengaturan/test-email - Test SMTP Email Connection */
+router.post('/test-email', async function (req, res) {
+  try {
+    var { email_user, email_pass, email_from, target_email } = req.body;
+    var recipient = target_email || email_user || ConfigService.get('EMAIL_USER');
+
+    if (!recipient) {
+      return res.status(400).json({ success: false, message: 'Email tujuan uji coba wajib diisi.' });
+    }
+
+    var customAuth = (email_user && email_pass) ? { user: email_user, pass: email_pass, from: email_from } : null;
+    var htmlContent = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h3 style="color: #006876;">Uji Coba Kirim Email - ISP Lintas Data Multimedia</h3>
+        <p>Email ini dikirim untuk memverifikasi bahwa konfigurasi SMTP Gmail pada Web Billing telah berfungsi dengan baik.</p>
+        <p><strong>Waktu Pengujian:</strong> ${new Date().toLocaleString('id-ID')}</p>
+        <hr style="border: none; border-top: 1px solid #e2e8f0;">
+        <small style="color: #64748b;">Pesan otomatis dari Sistem Pengaturan LDM.</small>
+      </div>
+    `;
+
+    var result = await EmailService.sendEmail(recipient, '[UJI COBA] Konfigurasi Email Billing LDM', htmlContent, null, customAuth);
+
+    if (result.success && result.status === 'terkirim') {
+      res.json({
+        success: true,
+        message: `Email uji coba berhasil dikirim ke ${recipient}!`
+      });
+    } else if (result.status === 'simulated') {
+      res.json({
+        success: true,
+        message: `Mode Simulation (Sandbox): Kredensial belum diisi.`
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: `Gagal mengirim email uji coba: ${result.error || 'Unknown error'}`
+      });
+    }
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: `Error pengiriman email: ${err.message}`
+    });
+  }
+});
+
 module.exports = router;
+

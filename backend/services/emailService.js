@@ -1,33 +1,29 @@
 var nodemailer = require('nodemailer');
 var path = require('path');
 var fs = require('fs');
+var ConfigService = require('./configService');
 
 // Publicly hosted logo URL on raw GitHub to ensure it renders instantly and reliably in Gmail
-var LOGO_URL = 'https://raw.githubusercontent.com/L-yall/KpLintasDataMultimedia/main/backend/public/logo_ldm.png';
+var LOGO_URL = 'https://raw.githubusercontent.com/rassyhvre/KpLintasDataMultimedia/main/backend/public/logo_ldm.png';
 
-// Create reusable transporter using Gmail SMTP if credentials are configured
-var transporter = null;
+/**
+ * Creates a Nodemailer transporter instance dynamically using ConfigService or custom options
+ */
+function getTransporter(customAuth) {
+  var emailUser = (customAuth && customAuth.user) || ConfigService.get('EMAIL_USER', process.env.EMAIL_USER);
+  var emailPass = (customAuth && customAuth.pass) || ConfigService.get('EMAIL_PASS', process.env.EMAIL_PASS);
 
-if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-  transporter = nodemailer.createTransport({
+  if (!emailUser || !emailPass) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
+      user: emailUser,
+      pass: emailPass
     }
   });
-
-  // Verify transporter on startup
-  transporter.verify(function (error) {
-    if (error) {
-      console.error('[Email Service] ⚠️  Gagal terhubung ke SMTP Gmail:', error.message);
-      console.log('[Email Service] Email akan berjalan dalam mode SANDBOX (log ke console).');
-    } else {
-      console.log('[Email Service] ✅ SMTP Gmail terhubung dan siap mengirim email.');
-    }
-  });
-} else {
-  console.log('[Email Service] ⚠️  EMAIL_USER/EMAIL_PASS tidak terkonfigurasi. Email berjalan dalam mode SANDBOX (log ke console).');
 }
 
 var EmailService = {
@@ -37,9 +33,11 @@ var EmailService = {
    * @param {string} subject - Email subject
    * @param {string} htmlContent - HTML body content
    * @param {Array} attachments - Optional Nodemailer attachments array
+   * @param {Object} customAuth - Optional custom SMTP credentials for testing
    */
-  sendEmail: async function (toEmail, subject, htmlContent, attachments) {
-    var fromName = process.env.EMAIL_FROM || 'ESP Lintas Data <24percobaan24@gmail.com>';
+  sendEmail: async function (toEmail, subject, htmlContent, attachments, customAuth) {
+    var fromName = (customAuth && customAuth.from) || ConfigService.get('EMAIL_FROM', process.env.EMAIL_FROM) || 'ESP Lintas Data <24percobaan24@gmail.com>';
+    var transporter = getTransporter(customAuth);
 
     console.log('[Email Service] Menyiapkan email ke ' + toEmail + ' | Subject: ' + subject);
 
@@ -54,7 +52,7 @@ var EmailService = {
       }
       console.log('Body:\n' + htmlContent);
       console.log('========================================================');
-      return { success: true, status: 'simulated', message: 'Simulated success (Sandbox)' };
+      return { success: true, status: 'simulated', message: 'Simulated success (Sandbox mode: EMAIL_USER/EMAIL_PASS belum diisi)' };
     }
 
     try {
@@ -85,17 +83,7 @@ var EmailService = {
   sendOtpEmail: async function (toEmail, data) {
     var subject = `[${data.otp}] Ini Adalah Kode Verifikasi Kamu`;
     var logoUrl = LOGO_URL;
-    var smallPath = path.join(__dirname, '../public/otp_illustration_small.png');
-    var fullPath = path.join(__dirname, '../public/otp_illustration.png');
-    var otpImgSrc = logoUrl;
-
-    if (fs.existsSync(smallPath)) {
-      var imgBase64 = fs.readFileSync(smallPath).toString('base64');
-      otpImgSrc = 'data:image/png;base64,' + imgBase64;
-    } else if (fs.existsSync(fullPath)) {
-      var imgBase64 = fs.readFileSync(fullPath).toString('base64');
-      otpImgSrc = 'data:image/png;base64,' + imgBase64;
-    }
+    var otpImgSrc = 'https://raw.githubusercontent.com/rassyhvre/KpLintasDataMultimedia/main/backend/public/otp_illustration.png';
 
     var html = `
 <!DOCTYPE html>

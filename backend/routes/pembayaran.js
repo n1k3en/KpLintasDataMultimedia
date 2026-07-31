@@ -22,7 +22,7 @@ router.get('/pending', function(req, res) {
   });
 });
 
-/* GET /api/pembayaran/midtrans - Get all Midtrans payments */
+/* GET /api/pembayaran/midtrans - Get all Midtrans and Duitku online payments */
 router.get('/midtrans', function(req, res) {
   var db = require('../config/db');
   var sql = `
@@ -35,7 +35,7 @@ router.get('/midtrans', function(req, res) {
     FROM pembayaran pem
     JOIN tagihan t ON pem.id_tagihan = t.id_tagihan
     JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan
-    WHERE pem.bukti_file LIKE 'Midtrans%'
+    WHERE pem.bukti_file LIKE 'Midtrans%' OR pem.bukti_file LIKE 'Duitku%'
     ORDER BY pem.tanggal_upload DESC
   `;
   db.query(sql, function(err, results) {

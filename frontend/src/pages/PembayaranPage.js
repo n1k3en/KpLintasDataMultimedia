@@ -107,10 +107,11 @@ function PembayaranPage({ socket }) {
   }
 
   function parseMidtransBukti(buktiStr) {
-    if (!buktiStr) return { tipe: 'Midtrans', status: 'Selesai' };
+    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', status: 'Selesai' };
     var parts = buktiStr.split(' / ');
+    var gateway = parts[0] || 'Online';
     var rawType = parts[1] || 'automatic';
-    var rawStatus = parts[2] || 'settlement';
+    var rawStatus = parts[2] || 'success';
 
     var tipeMap = {
       'bank_transfer': 'Virtual Account (VA)',
@@ -124,6 +125,7 @@ function PembayaranPage({ socket }) {
     var statusMap = {
       'settlement': 'Sukses (Settlement)',
       'capture': 'Sukses (Captured)',
+      'success': 'Sukses',
       'pending': 'Tertunda (Pending)',
       'deny': 'Ditolak (Denied)',
       'expire': 'Kadaluarsa (Expired)',
@@ -131,7 +133,8 @@ function PembayaranPage({ socket }) {
     };
 
     return {
-      tipe: tipeMap[rawType] || rawType.replace(/_/g, ' ').toUpperCase(),
+      gateway: gateway,
+      tipe: gateway + ' (' + (tipeMap[rawType] || rawType.replace(/_/g, ' ').toUpperCase()) + ')',
       status: statusMap[rawStatus] || rawStatus.toUpperCase()
     };
   }
@@ -164,8 +167,8 @@ function PembayaranPage({ socket }) {
     <div>
       <div className="page-header">
         <div>
-          <h1>{queryType === 'midtrans' ? 'Riwayat Pembayaran Midtrans' : 'Persetujuan Pembayaran'}</h1>
-          <p>{queryType === 'midtrans' ? 'Daftar transaksi pembayaran tagihan otomatis via Midtrans.' : 'Verifikasi bukti transfer dari pelanggan dan aktifkan kembali layanan internet mereka.'}</p>
+          <h1>{queryType === 'midtrans' ? 'Riwayat Pembayaran Online Instan' : 'Persetujuan Pembayaran'}</h1>
+          <p>{queryType === 'midtrans' ? 'Daftar transaksi pembayaran tagihan otomatis via Midtrans & Duitku.' : 'Verifikasi bukti transfer dari pelanggan dan aktifkan kembali layanan internet mereka.'}</p>
         </div>
       </div>
 
@@ -210,7 +213,7 @@ function PembayaranPage({ socket }) {
             </thead>
             <tbody>
               {pendingPayments.map(function (item, idx) {
-                var isMidtrans = item.bukti_file && item.bukti_file.includes('Midtrans');
+                var isOnlinePayment = item.bukti_file && (item.bukti_file.includes('Midtrans') || item.bukti_file.includes('Duitku'));
                 return (
                   <tr key={item.id_pembayaran}>
                     <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
@@ -226,12 +229,12 @@ function PembayaranPage({ socket }) {
                         className="btn btn-secondary btn-sm"
                         onClick={function () { setZoomScale(1); setViewBukti(item); }}
                       >
-                        <TemplateIcon name={isMidtrans ? 'document' : 'camera'} size={14} style={{ marginRight: '6px' }} />
-                        {isMidtrans ? 'Detail Transaksi' : 'Lihat Bukti'}
+                        <TemplateIcon name={isOnlinePayment ? 'document' : 'camera'} size={14} style={{ marginRight: '6px' }} />
+                        {isOnlinePayment ? 'Detail Transaksi' : 'Lihat Bukti'}
                       </button>
                     </td>
                     <td>
-                      {isMidtrans ? (
+                      {isOnlinePayment ? (
                         <span className="status-badge hijau">Lunas (Otomatis)</span>
                       ) : (
                         <div className="table-actions">
@@ -266,14 +269,14 @@ function PembayaranPage({ socket }) {
           isOpen={viewBukti !== null}
           onClose={function () { resetBuktiZoom(); setViewBukti(null); }}
           title={
-            viewBukti.bukti_file && viewBukti.bukti_file.includes('Midtrans') ? (
-              <><TemplateIcon name="document" size={16} style={{ marginRight: '8px' }} /> Detail Transaksi Midtrans - {viewBukti.nama}</>
+            viewBukti.bukti_file && (viewBukti.bukti_file.includes('Midtrans') || viewBukti.bukti_file.includes('Duitku')) ? (
+              <><TemplateIcon name="document" size={16} style={{ marginRight: '8px' }} /> Detail Transaksi Online - {viewBukti.nama}</>
             ) : (
               <><TemplateIcon name="camera" size={16} style={{ marginRight: '8px' }} /> Bukti Transfer - {viewBukti.nama}</>
             )
           }
           footer={
-            viewBukti.bukti_file && viewBukti.bukti_file.includes('Midtrans') ? (
+            viewBukti.bukti_file && (viewBukti.bukti_file.includes('Midtrans') || viewBukti.bukti_file.includes('Duitku')) ? (
               <button className="btn btn-primary btn-sm" onClick={function () { setViewBukti(null); }}>Tutup</button>
             ) : (
               <>
@@ -296,7 +299,7 @@ function PembayaranPage({ socket }) {
             )
           }
         >
-          {viewBukti.bukti_file && viewBukti.bukti_file.includes('Midtrans') ? (
+          {viewBukti.bukti_file && (viewBukti.bukti_file.includes('Midtrans') || viewBukti.bukti_file.includes('Duitku')) ? (
             <div style={{ padding: '10px 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>

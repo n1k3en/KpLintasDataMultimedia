@@ -8,6 +8,248 @@ var axios = require('axios');
 var db = require('../config/db');
 var verifyCustomerToken = require('../middleware/customerAuth');
 var SocketService = require('../services/socket');
+var ConfigService = require('../services/configService');
+
+// Duitku Webhook Callback Endpoint (Public - must be BEFORE verifyCustomerToken)
+router.post('/duitku-callback', function (req, res) {
+  var notification = req.body || {};
+
+  // Support both urlencoded and json body params from Duitku
+  var merchantCode = notification.merchantCode;
+  var amount = notification.amount;
+  var merchantOrderId = notification.merchantOrderId;
+  var signature = notification.signature;
+  var resultCode = notification.resultCode;
+  var paymentMethod = notification.paymentCode || notification.paymentMethod || 'Duitku';
+
+  if (!merchantCode || !amount || !merchantOrderId || !signature) {
+    console.log('[Duitku Callback] Received incomplete payload / test ping.');
+    return res.status(200).json({ success: true, message: 'Duitku Callback ping received successfully' });
+  }
+
+  var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
+
+  // MD5 signature verification: md5(merchantCode + amount + merchantOrderId + apiKey)
+  var rawString = merchantCode + amount + merchantOrderId + apiKey;
+  var computedSignature = crypto.createHash('md5').update(rawString).digest('hex');
+
+  if (computedSignature.toLowerCase() !== signature.toLowerCase()) {
+    console.error('[Duitku Callback] Invalid Signature! Verification failed.');
+    return res.status(200).json({ success: false, message: 'Invalid signature' });
+  }
+
+  // Parse id_tagihan from merchantOrderId (e.g. 'TRX-DUITKU-12-1783492810' or 'TRX-12-1783492810')
+  var parts = merchantOrderId.split('-');
+  var id_tagihan = null;
+  for (var i = 0; i < parts.length; i++) {
+    var val = parseInt(parts[i], 10);
+    if (!isNaN(val) && val > 0) {
+      id_tagihan = val;
+      break;
+    }
+  }
+
+  if (!id_tagihan) {
+    console.error('[Duitku Callback] Failed to parse id_tagihan from merchantOrderId:', merchantOrderId);
+    return res.status(200).json({ success: false, message: 'Invalid merchantOrderId format' });
+  }
+
+  console.log(`[Duitku Callback] Received status for Tagihan #${id_tagihan}: resultCode=${resultCode}, type=${paymentMethod}`);
+
+  // ResultCode '00' indicates payment success in Duitku
+  if (resultCode === '00') {
+    // 1. Get Tagihan and Customer Info
+    var selectSql = `
+      SELECT t.*, p.nama, p.no_hp, p.email, p.pppoe_username, p.due_date 
+      FROM tagihan t 
+      JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+      WHERE t.id_tagihan = ?
+    `;
+    db.query(selectSql, [id_tagihan], function (err, results) {
+      if (err) {
+        console.error('[Duitku Callback] Database error:', err.message);
+        return res.status(500).json({ success: false, message: 'Database error' });
+      }
+
+      if (results.length === 0) {
+        console.error('[Duitku Callback] Tagihan not found for ID:', id_tagihan);
+        return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan' });
+      }
+
+      var billing = results[0];
+
+      // If already paid, do nothing
+      if (billing.status === 'lunas') {
+        console.log(`[Duitku Callback] Tagihan #${id_tagihan} is already lunas. Skipping duplicate processing.`);
+        return res.json({ success: true, message: 'Tagihan sudah lunas.' });
+      }
+
+      // 2. Create Pembayaran entry with status 'diterima'
+      var relativePath = 'Duitku / ' + paymentMethod + ' / success';
+      var insertSql = `
+        INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
+        VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
+      `;
+      db.query(insertSql, [id_tagihan, relativePath], function (err, paymentResult) {
+        if (err) {
+          console.error('[Duitku Callback] Failed to insert payment:', err.message);
+          return res.status(500).json({ success: false, message: 'Failed to record payment' });
+        }
+
+        var id_pembayaran = paymentResult.insertId;
+
+        // Insert notification
+        db.query("INSERT INTO notifikasi (id_pembayaran) VALUES (?)", [id_pembayaran], function(notifErr) {
+          if (notifErr) {
+            console.error('[Duitku Callback] Failed to insert notification record:', notifErr.message);
+          }
+        });
+
+        // 3. Update tagihan status to 'lunas'
+        var TagihanModel = require('../models/Tagihan');
+        TagihanModel.updateStatus(id_tagihan, 'lunas', function (tagihanErr) {
+          if (tagihanErr) {
+            console.error('[Duitku Callback] Failed to update tagihan status:', tagihanErr.message);
+            return res.status(500).json({ success: false, message: 'Failed to update bill status' });
+          }
+
+          // 4. Update pelanggan: set status to 'hijau' and extend due_date by 30 days
+          var currentDueDate = new Date(billing.due_date);
+          var newDueDate = new Date(currentDueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+          var newDueDateString = newDueDate.toISOString().split('T')[0];
+
+          var PelangganModel = require('../models/Pelanggan');
+          PelangganModel.update(billing.id_pelanggan, {
+            status_tagihan: 'hijau',
+            due_date: newDueDateString
+          }, async function (pelangganErr) {
+            if (pelangganErr) {
+              console.error('[Duitku Callback] Failed to update customer status:', pelangganErr.message);
+            }
+
+            // 5. Generate next month's bill
+            var parts = billing.periode.split('-');
+            var year = parseInt(parts[0], 10);
+            var month = parseInt(parts[1], 10);
+            if (month === 12) {
+              month = 1;
+              year += 1;
+            } else {
+              month += 1;
+            }
+            var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
+
+            var nominal = await new Promise((resolve) => {
+              db.query(`
+                SELECT pl.harga 
+                FROM pelanggan p 
+                JOIN paket_layanan pl ON p.paket = pl.nama_paket 
+                WHERE p.id_pelanggan = ?
+              `, [billing.id_pelanggan], (err, rows) => {
+                resolve(rows && rows[0] ? rows[0].harga : billing.nominal);
+              });
+            });
+
+            TagihanModel.create({
+              id_pelanggan: billing.id_pelanggan,
+              periode: nextPeriod,
+              nominal: nominal,
+              status: 'belum_bayar',
+              due_date: newDueDateString
+            }, async function (nextBillErr) {
+              if (nextBillErr) {
+                console.error('[Duitku Callback] Failed to generate next month bill:', nextBillErr.message);
+              }
+
+              // 6. Enable PPPoE in Mikrotik
+              var pppoeStatus = 'unknown';
+              if (billing.pppoe_username) {
+                try {
+                  var MikrotikService = require('../services/mikrotik');
+                  var mRes = await MikrotikService.enableSecret(billing.pppoe_username);
+                  if (mRes) pppoeStatus = 'active';
+                } catch (mikrotikErr) {
+                  console.error(`[Duitku Callback] Failed to enable PPPoE ${billing.pppoe_username}:`, mikrotikErr.message);
+                }
+              }
+
+              // 7. Send Email confirmation of approval
+              if (billing.email) {
+                try {
+                  var EmailService = require('../services/emailService');
+                  var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                  });
+
+                  var tglBayarStr = new Date().toLocaleString('id-ID', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+
+                  var pdfBuffer = null;
+                  try {
+                    var PdfService = require('../services/pdfService');
+                    pdfBuffer = await PdfService.generateInvoicePdf({
+                      id_tagihan: id_tagihan,
+                      periode: billing.periode,
+                      nominal: billing.nominal,
+                      status: 'lunas',
+                      due_date: newDueDateString,
+                      created_at: new Date(),
+                      nama: billing.nama,
+                      email: billing.email,
+                      no_hp: billing.no_hp || '-',
+                      alamat: billing.alamat || '-',
+                      paket: billing.paket || '-'
+                    }, true);
+                  } catch (pdfErr) {
+                    console.error('[Duitku Callback] Failed to generate PDF invoice:', pdfErr.message);
+                  }
+
+                  await EmailService.sendPaymentApprovedEmail(billing.email, {
+                    nama: billing.nama,
+                    periode: billing.periode,
+                    nominal: Number(billing.nominal).toLocaleString('id-ID'),
+                    dueDateFormatted: dueDateFormatted,
+                    tanggalBayar: tglBayarStr,
+                    metodePembayaran: 'Duitku Gateway (' + paymentMethod + ')'
+                  }, pdfBuffer);
+                } catch (emailErr) {
+                  console.error('[Duitku Callback] Failed to send confirmation email:', emailErr.message);
+                }
+              }
+
+              // 8. Broadcast websocket updates
+              SocketService.broadcast('pelanggan_updated', {
+                id_pelanggan: billing.id_pelanggan,
+                status_tagihan: 'hijau',
+                pppoe_status: pppoeStatus
+              });
+
+              SocketService.broadcast('pembayaran_masuk', {
+                id_pembayaran: id_pembayaran,
+                id_tagihan: id_tagihan,
+                nama_pelanggan: billing.nama,
+                tanggal_upload: new Date()
+              });
+
+              console.log(`[Duitku Callback] Tagihan #${id_tagihan} successfully processed and re-activated!`);
+              return res.json({ success: true, message: 'Pembayaran Duitku berhasil diproses!' });
+            });
+          });
+        });
+      });
+    });
+  } else {
+    console.log(`[Duitku Callback] Acknowledging transaction status: resultCode=${resultCode}`);
+    return res.json({ success: true, message: 'ResultCode callback received: ' + resultCode });
+  }
+});
 
 // Midtrans Webhook Callback endpoint (Public - must be BEFORE verifyCustomerToken)
 router.post('/midtrans-callback', function (req, res) {
@@ -562,9 +804,10 @@ router.post('/pay', function (req, res) {
 
 // GET /api/customer/portal/midtrans-config - Get Client Key for Snap SDK initialization
 router.get('/midtrans-config', function (req, res) {
-  var clientKey = process.env.MIDTRANS_CLIENT_KEY || '';
-  var serverKey = process.env.MIDTRANS_SERVER_KEY || '';
-  var isSandbox = process.env.MIDTRANS_IS_SANDBOX === 'true' || serverKey.startsWith('SB-') || clientKey.startsWith('SB-');
+  var clientKey = ConfigService.get('MIDTRANS_CLIENT_KEY', process.env.MIDTRANS_CLIENT_KEY || '');
+  var serverKey = ConfigService.get('MIDTRANS_SERVER_KEY', process.env.MIDTRANS_SERVER_KEY || '');
+  var isSandboxConfig = ConfigService.get('MIDTRANS_IS_SANDBOX', process.env.MIDTRANS_IS_SANDBOX || 'true');
+  var isSandbox = isSandboxConfig === 'true' || serverKey.startsWith('SB-') || clientKey.startsWith('SB-');
   res.json({
     success: true,
     clientKey: clientKey,
@@ -604,8 +847,9 @@ router.post('/midtrans-token', function (req, res) {
 
     // Generate unique order ID
     var orderId = 'TRX-' + id_tagihan + '-' + Date.now();
-    var serverKey = process.env.MIDTRANS_SERVER_KEY || '';
-    var isSandbox = process.env.MIDTRANS_IS_SANDBOX === 'true' || serverKey.startsWith('SB-');
+    var serverKey = ConfigService.get('MIDTRANS_SERVER_KEY', process.env.MIDTRANS_SERVER_KEY || '');
+    var isSandboxConfig = ConfigService.get('MIDTRANS_IS_SANDBOX', process.env.MIDTRANS_IS_SANDBOX || 'true');
+    var isSandbox = isSandboxConfig === 'true' || serverKey.startsWith('SB-');
 
     var snapUrl = isSandbox
       ? 'https://app.sandbox.midtrans.com/snap/v1/transactions'
@@ -649,6 +893,116 @@ router.post('/midtrans-token', function (req, res) {
           success: false,
           message: 'Gagal membuat transaksi di Midtrans. Silakan coba metode transfer biasa.',
           error: midtransErr.response?.data || midtransErr.message
+        });
+      });
+  });
+});
+
+// POST /api/customer/portal/duitku-payment - Request Duitku Payment URL for a bill
+router.post('/duitku-payment', function (req, res) {
+  var { id_tagihan, paymentMethod } = req.body;
+  var customerId = req.customerId;
+
+  if (!id_tagihan) {
+    return res.status(400).json({ success: false, message: 'ID Tagihan wajib disertakan.' });
+  }
+
+  var merchantCode = ConfigService.get('DUITKU_MERCHANT_CODE', process.env.DUITKU_MERCHANT_CODE || '');
+  var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
+  var isSandbox = ConfigService.get('DUITKU_IS_SANDBOX', process.env.DUITKU_IS_SANDBOX || 'true') === 'true';
+
+  if (!merchantCode || !apiKey) {
+    return res.status(400).json({
+      success: false,
+      message: 'Payment Gateway Duitku belum dikonfigurasi oleh Admin. Silakan hubungi Customer Service.'
+    });
+  }
+
+  // Verify that the bill belongs to the logged-in customer and is not paid yet
+  var sql = `
+    SELECT t.*, p.nama, p.email, p.no_hp 
+    FROM tagihan t 
+    JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+    WHERE t.id_tagihan = ? AND t.id_pelanggan = ?
+  `;
+  db.query(sql, [id_tagihan, customerId], function (err, results) {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Database error' });
+    }
+
+    if (results.length === 0) {
+      return res.status(403).json({ success: false, message: 'Tagihan tidak ditemukan atau bukan milik Anda.' });
+    }
+
+    var billing = results[0];
+    if (billing.status === 'lunas') {
+      return res.status(400).json({ success: false, message: 'Tagihan ini sudah lunas.' });
+    }
+
+    // Generate unique order ID
+    var orderId = 'TRX-DUITKU-' + id_tagihan + '-' + Date.now();
+    var amount = Math.round(Number(billing.nominal));
+
+    // MD5 Signature: md5(merchantCode + orderId + amount + apiKey)
+    var signature = crypto.createHash('md5').update(merchantCode + orderId + amount + apiKey).digest('hex');
+
+    var duitkuInquiryUrl = isSandbox
+      ? 'https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry'
+      : 'https://passport.duitku.com/webapi/api/merchant/v2/inquiry';
+
+    var hostHeader = req.get('host');
+    var protocol = req.protocol;
+    var baseUrl = protocol + '://' + hostHeader;
+
+    var callbackUrl = baseUrl + '/api/customer/portal/duitku-callback';
+    var returnUrl = req.get('referer') || (baseUrl + '/portal');
+
+    var methodCode = paymentMethod || 'VC'; // Default to 'VC' if not specified
+
+    var payload = {
+      merchantCode: merchantCode,
+      paymentAmount: amount,
+      paymentMethod: methodCode,
+      merchantOrderId: orderId,
+      productDetails: 'Pembayaran Tagihan Internet Periode ' + billing.periode,
+      email: billing.email || (billing.no_hp + '@ldm.net'),
+      additionalParam: String(id_tagihan),
+      customerVaName: billing.nama,
+      callbackUrl: callbackUrl,
+      returnUrl: returnUrl,
+      signature: signature,
+      expiryPeriod: 1440 // 24 hours
+    };
+
+    axios.post(duitkuInquiryUrl, payload, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(function (duitkuRes) {
+        if (duitkuRes.data && (duitkuRes.data.paymentUrl || duitkuRes.data.statusCode === '00')) {
+          res.json({
+            success: true,
+            paymentUrl: duitkuRes.data.paymentUrl,
+            reference: duitkuRes.data.reference,
+            statusCode: duitkuRes.data.statusCode
+          });
+        } else {
+          console.error('[Duitku Payment API] Response error:', duitkuRes.data);
+          res.status(400).json({
+            success: false,
+            message: duitkuRes.data?.statusMessage || 'Gagal membuat transaksi di Duitku.',
+            error: duitkuRes.data
+          });
+        }
+      })
+      .catch(function (duitkuErr) {
+        console.error('[Duitku Payment API] Request Error:', duitkuErr.response?.data || duitkuErr.message);
+        res.status(500).json({
+          success: false,
+          message: 'Gagal menghubungkan ke Duitku Gateway. Silakan coba kembali.',
+          error: duitkuErr.response?.data || duitkuErr.message
         });
       });
   });

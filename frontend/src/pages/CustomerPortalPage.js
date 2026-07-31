@@ -25,6 +25,9 @@ function CustomerPortalPage({ onLogout }) {
   var [paymentMethod, setPaymentMethod] = useState('midtrans');
   var [midtransClientKey, setMidtransClientKey] = useState('');
   var [midtransLoading, setMidtransLoading] = useState(false);
+  var [duitkuLoading, setDuitkuLoading] = useState(false);
+  var [duitkuModalOpen, setDuitkuModalOpen] = useState(false);
+  var [duitkuSelectedChannel, setDuitkuSelectedChannel] = useState(null);
   var [dropdownOpen, setDropdownOpen] = useState(false);
   var [profileOpen, setProfileOpen] = useState(false);
   var dropdownRef = useRef(null);
@@ -34,7 +37,8 @@ function CustomerPortalPage({ onLogout }) {
 
   // Payment method options with logos
   var paymentOptions = [
-    { value: 'midtrans', label: 'Bayar Online Instan (QRIS, E-Wallet, VA Bank Transfer)', sublabel: 'Otomatis', icon: 'payments', logo: null },
+    { value: 'midtrans', label: 'Bayar Online Instan - Midtrans (QRIS, E-Wallet, VA)', sublabel: 'Otomatis via Midtrans', icon: 'payments', logo: null },
+    { value: 'duitku', label: 'Bayar Online Instan - Duitku (QRIS, VA, E-Wallet, Retail)', sublabel: 'Otomatis via Duitku', icon: 'account_balance_wallet', logo: null },
     { value: 'qris', label: 'Manual: QRIS', sublabel: 'Scan & Transfer', icon: 'qr_code_2', logo: null },
     { value: 'bri', label: 'Manual: Bank BRI', sublabel: 'Transfer Bank', icon: null, logo: process.env.PUBLIC_URL + '/BRI.jpg' },
     { value: 'mandiri', label: 'Manual: Bank Mandiri', sublabel: 'Transfer Bank', icon: null, logo: process.env.PUBLIC_URL + '/MANDIRI.png' },
@@ -213,6 +217,33 @@ function CustomerPortalPage({ onLogout }) {
     }
   }
 
+  async function handleDuitkuPay(channelCode) {
+    if (!billing || !billing.id_tagihan) return;
+    setDuitkuSelectedChannel(channelCode);
+    setDuitkuLoading(true);
+    setMessage({ type: '', text: '' });
+    try {
+      var response = await axios.post(`${API_BASE_URL}/api/customer/portal/duitku-payment`, {
+        id_tagihan: billing.id_tagihan,
+        paymentMethod: channelCode
+      }, { headers: headers });
+      if (response.data.success && response.data.paymentUrl) {
+        setDuitkuModalOpen(false);
+        window.location.href = response.data.paymentUrl;
+      } else {
+        setDuitkuModalOpen(false);
+        setMessage({ type: 'error', text: response.data?.message || 'Gagal membuat transaksi Duitku.' });
+      }
+    } catch (err) {
+      console.error('Duitku payment error:', err);
+      setDuitkuModalOpen(false);
+      setMessage({ type: 'error', text: err.response?.data?.message || 'Gagal memulai pembayaran Duitku.' });
+    } finally {
+      setDuitkuLoading(false);
+      setDuitkuSelectedChannel(null);
+    }
+  }
+
   function getSelectedOption() {
     return paymentOptions.find(function (opt) { return opt.value === paymentMethod; });
   }
@@ -308,6 +339,20 @@ function CustomerPortalPage({ onLogout }) {
               ) : (
                 <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>payments</span> Bayar Sekarang</>
               )}
+            </button>
+          </div>
+        );
+      case 'duitku':
+        return (
+          <div style={S.infoBox}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: 'var(--md-primary)' }}>
+              Pembayaran Online Otomatis (Duitku Gateway)
+            </div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
+              QRIS, Virtual Account, ShopeePay, Indomaret, Kartu Kredit & lebih banyak lagi. Pembayaran terverifikasi otomatis secara instan.
+            </p>
+            <button type="button" style={{ ...S.btnPrimary }} onClick={function () { setDuitkuModalOpen(true); }}>
+              <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Bayar via Duitku</>
             </button>
           </div>
         );
@@ -487,7 +532,7 @@ function CustomerPortalPage({ onLogout }) {
           )}
 
           {/* Upload Proof */}
-          {paymentMethod !== 'midtrans' && (
+          {paymentMethod !== 'midtrans' && paymentMethod !== 'duitku' && (
             <div className="portal-card">
               <div className="portal-card-header">
                 <span className="portal-card-title">
@@ -567,10 +612,11 @@ function CustomerPortalPage({ onLogout }) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {paymentHistory.map(function (pay) {
-            var isOnline = pay.bukti_file.startsWith('Midtrans');
+            var isOnline = pay.bukti_file.startsWith('Midtrans') || pay.bukti_file.startsWith('Duitku');
             var paymentUrl = isOnline ? '#' : `${API_BASE_URL}${pay.bukti_file}`;
             var badgeClass = pay.status === 'diterima' ? 'hijau' : (pay.status === 'ditolak' ? 'merah' : 'kuning');
             var statusText = pay.status === 'diterima' ? 'Lunas / Disetujui' : (pay.status === 'ditolak' ? 'Ditolak' : 'Menunggu Verifikasi');
+            var onlineLabel = pay.bukti_file.startsWith('Duitku') ? 'Pembayaran Online Instan (Duitku)' : 'Pembayaran Online Instan (Midtrans)';
 
             return (
               <div key={pay.id_pembayaran} className="portal-card" style={{ padding: 24, marginBottom: 0 }}>
@@ -596,7 +642,7 @@ function CustomerPortalPage({ onLogout }) {
                 <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--md-outline-variant)', paddingTop: 16 }}>
                   {isOnline ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: 'var(--status-hijau)', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span> Pembayaran Online Instan (Midtrans)
+                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span> {onlineLabel}
                     </div>
                   ) : (
                     <a href={paymentUrl} target="_blank" rel="noopener noreferrer" style={{
@@ -814,6 +860,131 @@ function CustomerPortalPage({ onLogout }) {
           .profile-grid { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {/* ============================== */}
+      {/* Duitku Payment Modal (Snap-style popup) */}
+      {/* ============================== */}
+      {duitkuModalOpen && (
+        <div
+          onClick={function (e) { if (e.target === e.currentTarget && !duitkuLoading) setDuitkuModalOpen(false); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9000,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '16px', animation: 'duitkuOverlayIn 0.22s ease-out'
+          }}
+        >
+          <style>{`
+            @keyframes duitkuOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes duitkuSlideUp { from { opacity: 0; transform: translateY(28px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            .duitku-channel-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(0,104,118,0.08); cursor: pointer; transition: background 0.15s ease; border-radius: 0; }
+            .duitku-channel-item:first-child { border-radius: 12px 12px 0 0; }
+            .duitku-channel-item:last-child { border-bottom: none; border-radius: 0 0 12px 12px; }
+            .duitku-channel-item:hover { background: rgba(0,104,118,0.05); }
+            .duitku-channel-item:active { background: rgba(0,104,118,0.1); }
+            .duitku-channel-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.3rem; font-weight: 700; }
+            .duitku-channel-recommended { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 20px; background: rgba(0,104,118,0.1); color: var(--md-primary); margin-top: 2px; display: inline-block; }
+            .duitku-channel-chevron { color: #c0d0d4; font-size: 1.2rem; margin-left: auto; flex-shrink: 0; }
+            .duitku-channel-spin { animation: spin 0.9s linear infinite; }
+            @keyframes spin { to { transform: rotate(360deg); } }
+          `}</style>
+          <div style={{
+            background: 'white', borderRadius: 20, width: '100%', maxWidth: 420,
+            boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
+            animation: 'duitkuSlideUp 0.25s cubic-bezier(0.34,1.4,0.64,1)',
+            overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
+          }}>
+            {/* Modal Header */}
+            <div style={{ padding: '22px 22px 18px', borderBottom: '1px solid #f0f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
+                  Duitku Payment
+                </div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px' }}>
+                  Rp {billing ? Number(billing.nominal).toLocaleString('id-ID') : '0'}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                  Tagihan Periode {billing && billing.periode}
+                </div>
+              </div>
+              {!duitkuLoading && (
+                <button
+                  onClick={function () { setDuitkuModalOpen(false); }}
+                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: '1.1rem', flexShrink: 0 }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                </button>
+              )}
+            </div>
+
+            {/* Channel List */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {/* Recommended Section */}
+              <div style={{ padding: '12px 18px 6px', fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                Recommended
+              </div>
+              {[
+                { code: 'LQ', name: 'QRIS', desc: 'Semua Bank & E-Wallet (GoPay, OVO, Dana, LinkAja)', icon: 'qr_code_2', iconBg: '#e0f7fa', iconColor: '#006876', recommended: true }
+              ].map(function (ch) {
+                var isProcessing = duitkuLoading && duitkuSelectedChannel === ch.code;
+                return (
+                  <div key={ch.code} className="duitku-channel-item" onClick={function () { if (!duitkuLoading) handleDuitkuPay(ch.code); }}>
+                    <div className="duitku-channel-icon" style={{ background: ch.iconBg }}>
+                      {isProcessing ? (
+                        <span className="material-symbols-outlined duitku-channel-spin" style={{ fontSize: 22, color: ch.iconColor }}>progress_activity</span>
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: ch.iconColor }}>{ch.icon}</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{ch.name}</span>
+                        {ch.recommended && <span className="duitku-channel-recommended">Populer</span>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{isProcessing ? 'Membuat transaksi...' : ch.desc}</div>
+                    </div>
+                    {!duitkuLoading && <span className="material-symbols-outlined duitku-channel-chevron">chevron_right</span>}
+                  </div>
+                );
+              })}
+
+              {/* All Methods */}
+              <div style={{ padding: '12px 18px 6px', fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+                Semua Metode Pembayaran
+              </div>
+              {[
+                { code: 'SP', name: 'ShopeePay', desc: 'Bayar langsung via ShopeePay', icon: 'local_mall', iconBg: '#fff0e6', iconColor: '#ea580c' },
+                { code: 'I1', name: 'Minimarket', desc: 'Bayar di Indomaret / Alfamart', icon: 'storefront', iconBg: '#fef9c3', iconColor: '#854d0e' },
+                { code: 'VC', name: 'Kartu Kredit / Debit', desc: 'Visa, Mastercard, JCB, AmEx', icon: 'credit_card', iconBg: '#ede9fe', iconColor: '#7c3aed' }
+              ].map(function (ch) {
+                var isProcessing = duitkuLoading && duitkuSelectedChannel === ch.code;
+                return (
+                  <div key={ch.code} className="duitku-channel-item" onClick={function () { if (!duitkuLoading) handleDuitkuPay(ch.code); }}>
+                    <div className="duitku-channel-icon" style={{ background: ch.iconBg }}>
+                      {isProcessing ? (
+                        <span className="material-symbols-outlined duitku-channel-spin" style={{ fontSize: 22, color: ch.iconColor }}>progress_activity</span>
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: ch.iconColor }}>{ch.icon}</span>
+                      )}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{ch.name}</span>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{isProcessing ? 'Membuat transaksi...' : ch.desc}</div>
+                    </div>
+                    {!duitkuLoading && <span className="material-symbols-outlined duitku-channel-chevron">chevron_right</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #f0f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9ca3af' }}>lock</span>
+              <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600 }}>Transaksi diproses aman oleh Duitku Payment Gateway</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sidebar mobile overlay */}
       <div

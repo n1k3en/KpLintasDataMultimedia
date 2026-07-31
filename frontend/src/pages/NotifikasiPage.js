@@ -142,15 +142,15 @@ function NotifikasiPage({ socket }) {
     if (!matchesSearch) return false;
 
     // Status / Type filter
-    var isMidtrans = n.bukti_file && n.bukti_file.includes('Midtrans');
+    var isOnline = n.bukti_file && (n.bukti_file.includes('Midtrans') || n.bukti_file.includes('Duitku'));
     if (filterStatus === 'unread') {
       return n.status_baca === 0;
     } else if (filterStatus === 'read') {
       return n.status_baca === 1;
     } else if (filterStatus === 'manual') {
-      return !isMidtrans;
+      return !isOnline;
     } else if (filterStatus === 'midtrans') {
-      return isMidtrans;
+      return isOnline;
     }
 
     return true;
@@ -173,7 +173,7 @@ function NotifikasiPage({ socket }) {
       <div className="page-header">
         <div>
           <h1>Notifikasi Pembayaran</h1>
-          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans.</p>
+          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans & Duitku.</p>
         </div>
         <div>
           <button
@@ -199,7 +199,7 @@ function NotifikasiPage({ socket }) {
           { id: 'unread', label: 'Belum Dibaca' },
           { id: 'read', label: 'Sudah Dibaca' },
           { id: 'manual', label: 'Transfer Manual' },
-          { id: 'midtrans', label: 'Otomatis Midtrans' }
+          { id: 'midtrans', label: 'Otomatis Online' }
         ].map(function (tab) {
           var isActive = filterStatus === tab.id;
           return (

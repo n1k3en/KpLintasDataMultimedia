@@ -1,14 +1,15 @@
 var RouterOSAPI = require('node-routeros').RouterOSAPI;
-
-var host = process.env.MIKROTIK_HOST;
-var user = process.env.MIKROTIK_USER;
-var pass = process.env.MIKROTIK_PASS;
-var port = parseInt(process.env.MIKROTIK_PORT || '8728', 10);
+var ConfigService = require('./configService');
 
 // Helper function to establish connection, write command, close connection, and return data
-async function executeCommand(command, params) {
+async function executeCommand(command, params, customConfig) {
+  var host = (customConfig && customConfig.host) || ConfigService.get('MIKROTIK_HOST', process.env.MIKROTIK_HOST);
+  var user = (customConfig && customConfig.user) || ConfigService.get('MIKROTIK_USER', process.env.MIKROTIK_USER);
+  var pass = (customConfig && customConfig.pass) || ConfigService.get('MIKROTIK_PASS', process.env.MIKROTIK_PASS);
+  var port = parseInt((customConfig && customConfig.port) || ConfigService.get('MIKROTIK_PORT', process.env.MIKROTIK_PORT) || '8728', 10);
+
   if (!host || !user || !pass) {
-    throw new Error('Kredensial Mikrotik belum dikonfigurasi di file .env');
+    throw new Error('Kredensial Mikrotik belum dikonfigurasi.');
   }
 
   var conn = new RouterOSAPI({
@@ -34,9 +35,9 @@ async function executeCommand(command, params) {
 
 var MikrotikService = {
   // Check if router is reachable (ping)
-  ping: async function() {
+  ping: async function(customConfig) {
     try {
-      var data = await executeCommand('/system/resource/print');
+      var data = await executeCommand('/system/resource/print', null, customConfig);
       if (data && data.length > 0) {
         return {
           online: true,
@@ -46,8 +47,8 @@ var MikrotikService = {
       }
       return { online: false, error: 'Respon router kosong' };
     } catch (err) {
-      if (err.message.includes('belum dikonfigurasi')) {
-        console.log('[Mikrotik] Kredensial Mikrotik belum dikonfigurasi di file .env. Berjalan dalam mode offline.');
+      if (err.message && err.message.includes('belum dikonfigurasi')) {
+        console.log('[Mikrotik] Kredensial Mikrotik belum dikonfigurasi.');
       } else {
         console.error('Mikrotik Connection Error detail:', err);
       }
