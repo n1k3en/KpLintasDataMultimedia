@@ -3,7 +3,6 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import StatRing from '../components/dashboard/StatRing';
 import IncomeSpendCard from '../components/dashboard/IncomeSpendCard';
-import CustomerMap from '../components/dashboard/CustomerMap';
 import TodayPaymentSummary from '../components/dashboard/TodayPaymentSummary';
 import { Link } from 'react-router-dom';
 
@@ -31,7 +30,7 @@ function DashboardPage({ socket }) {
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
 
-  var fetchDashboardReports = async function() {
+  var fetchDashboardReports = async function () {
     var today = new Date();
     var currentMonthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
 
@@ -53,10 +52,10 @@ function DashboardPage({ socket }) {
         // Compute today's payments total
         var todayStr = today.toISOString().split('T')[0];
         var todaySum = pemasukanList
-          .filter(function(item) {
+          .filter(function (item) {
             return new Date(item.updated_at).toISOString().split('T')[0] === todayStr;
           })
-          .reduce(function(sum, item) {
+          .reduce(function (sum, item) {
             return sum + parseFloat(item.nominal);
           }, 0);
         setTodayPaymentsSum(todaySum);
@@ -72,12 +71,12 @@ function DashboardPage({ socket }) {
             if (lastMonthRes.data.success) {
               allIncomesForBar = [...allIncomesForBar, ...lastMonthRes.data.data.pemasukan_list];
             }
-          } catch(e) { console.error('Error fetching last month for bar chart:', e); }
+          } catch (e) { console.error('Error fetching last month for bar chart:', e); }
         }
 
         // Map to last 10 days
         var dailyIncomeMap = {};
-        allIncomesForBar.forEach(function(item) {
+        allIncomesForBar.forEach(function (item) {
           var dateStr = new Date(item.updated_at).toISOString().split('T')[0];
           dailyIncomeMap[dateStr] = (dailyIncomeMap[dateStr] || 0) + parseFloat(item.nominal);
         });
@@ -267,7 +266,7 @@ function DashboardPage({ socket }) {
     }
   }
 
-  var handleExportExcel = async function() {
+  var handleExportExcel = async function () {
     var today = new Date();
     var currentMonthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
     try {
@@ -371,7 +370,7 @@ function DashboardPage({ socket }) {
 
         .trend-summary-grid {
           display: grid;
-          grid-template-columns: 1.3fr 0.7fr;
+          grid-template-columns: 1fr;
           gap: 24px;
         }
 
@@ -638,28 +637,28 @@ function DashboardPage({ socket }) {
             color: 'white',
             fontWeight: '700'
           }}
-          onMouseEnter={function(e) {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-          }}
-          onMouseLeave={function(e) {
-            e.currentTarget.style.background = 'transparent';
-          }}
+            onMouseEnter={function (e) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+            }}
+            onMouseLeave={function (e) {
+              e.currentTarget.style.background = 'transparent';
+            }}
           >
             Kelola Pelanggan
           </Link>
-          <Link to="/dashboard/pelanggan?action=tambah" className="btn btn-primary" style={{
+          {/* <Link to="/dashboard/pelanggan?action=tambah" className="btn btn-primary" style={{
             background: 'var(--md-primary-fixed)',
             color: 'var(--md-on-primary-fixed-variant)',
             fontWeight: '700'
           }}>
             + Tambah Pelanggan
-          </Link>
+          </Link> */}
         </div>
       </section>
 
       {/* Shell wrapping the dashboard items */}
       <div className="dashboard-shell">
-        
+
         {/* Overlapping Stat Cards Row */}
         <div className="overlapping-grid-cards">
           {/* Card "Statistik Keseluruhan" (Circular Rings) */}
@@ -695,13 +694,8 @@ function DashboardPage({ socket }) {
           />
         </div>
 
-        {/* Customer WiFi Map & Solid Today Summary Grid */}
+        {/* Today Summary Grid */}
         <div className="trend-summary-grid">
-          <CustomerMap
-            customers={customers}
-            pppoeSummary={pppoeSummary}
-            loading={loading}
-          />
           <TodayPaymentSummary
             value={todayPaymentsSum}
             loading={loadingReports}
@@ -898,13 +892,13 @@ function CiscoRouterIcon({ width = 60, height = 40, online = true }) {
   var topColorStart = online ? "#4ba3e3" : "#cbd5e1";
   var bodyColorStart = online ? "#1266a5" : "#64748b";
   var strokeColor = online ? "#175e96" : "#475569";
-  
+
   return (
     <svg width={width} height={height} viewBox="0 0 80 50" style={{ overflow: 'visible' }}>
       <path d="M 5,20 L 5,38 A 35,12 0 0 0 75,38 L 75,20 Z" fill={bodyColorStart} stroke={strokeColor} strokeWidth="1" />
       <ellipse cx="40" cy="20" rx="35" ry="12" fill={topColorStart} stroke={strokeColor} strokeWidth="1" />
       <ellipse cx="40" cy="20" rx="35" ry="12" fill="none" stroke="#ffffff" strokeWidth="1.5" style={{ opacity: 0.3 }} />
-      
+
       {/* 4 Arrows on top */}
       <g transform="translate(40, 20) scale(0.9)" opacity="0.9">
         <line x1="-18" y1="-5" x2="18" y2="5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
@@ -929,7 +923,7 @@ function CiscoSwitchIcon({ width = 70, height = 40, online = true }) {
       <path d="M 15,10 L 55,10 L 68,20 L 28,20 Z" fill={topStart} stroke={strokeColor} strokeWidth="0.75" />
       <path d="M 28,20 L 68,20 L 68,34 L 28,34 Z" fill={frontStart} stroke={strokeColor} strokeWidth="0.75" />
       <path d="M 15,10 L 28,20 L 28,34 L 15,24 Z" fill={sideColor} stroke={strokeColor} strokeWidth="0.75" />
-      
+
       {/* Port Grid */}
       <g transform="translate(32, 22)" opacity={online ? 0.9 : 0.4}>
         <rect x="1" y="2" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
@@ -940,7 +934,7 @@ function CiscoSwitchIcon({ width = 70, height = 40, online = true }) {
         <rect x="21" y="2" width="2" height="2" fill="#475569" />
         <rect x="25" y="2" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
         <rect x="29" y="2" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
-        
+
         <rect x="1" y="6" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
         <rect x="5" y="6" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
         <rect x="9" y="6" width="2" height="2" fill={online ? "#22c55e" : "#475569"} />
@@ -950,7 +944,7 @@ function CiscoSwitchIcon({ width = 70, height = 40, online = true }) {
         <rect x="25" y="6" width="2" height="2" fill={online ? "#eab308" : "#475569"} />
         <rect x="29" y="6" width="2" height="2" fill="#475569" />
       </g>
-      
+
       <g transform="translate(30, 12) scale(0.65)" opacity="0.8">
         <path d="M 5,2 L 25,2 M 5,2 L 9,-1 M 5,2 L 9,5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M 5,8 L 25,8 M 25,8 L 21,5 M 25,8 L 21,11" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -971,11 +965,11 @@ function CiscoPCIcon({ width = 50, height = 42, online = true }) {
       <line x1="45" y1="13" x2="52" y2="13" stroke="#475569" strokeWidth="1.2" />
       <line x1="45" y1="16" x2="52" y2="16" stroke="#475569" strokeWidth="1.2" />
       <circle cx="48" cy="30" r="1.5" fill={keyColor} />
-      
+
       <rect x="6" y="8" width="34" height="24" rx="2" fill={bezelStart} stroke="#475569" strokeWidth="0.75" />
       <rect x="9" y="11" width="28" height="18" rx="0.5" fill={screenColorStart} stroke="#1e40af" strokeWidth="0.5" />
       <path d="M 9,11 L 28,11 L 9,23 Z" fill="#ffffff" style={{ opacity: 0.15 }} />
-      
+
       <path d="M 21,32 L 25,32 L 26,37 L 20,37 Z" fill="#64748b" stroke="#475569" strokeWidth="0.5" />
       <ellipse cx="23" cy="37" rx="7" ry="2" fill="#475569" />
 
@@ -990,22 +984,22 @@ function renderCiscoLink(x1, y1, x2, y2, isActive = true) {
   var angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
   var dist = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
   if (dist === 0) return null;
-  
+
   var offsetStart = 4;
   var offsetEnd = 4;
-  
+
   var startX = x1 + (offsetStart / dist) * (x2 - x1);
   var startY = y1 + (offsetStart / dist) * (y2 - y1);
   var endX = x2 - (offsetEnd / dist) * (x2 - x1);
   var endY = y2 - (offsetEnd / dist) * (y2 - y1);
-  
+
   var light1X = startX + 0.25 * (endX - startX);
   var light1Y = startY + 0.25 * (endY - startY);
   var light2X = startX + 0.75 * (endX - startX);
   var light2Y = startY + 0.75 * (endY - startY);
-  
+
   var color = isActive ? "#0f9d5b" : "#ba1a1a";
-  
+
   return (
     <g>
       <line x1={startX} y1={startY} x2={endX} y2={endY} stroke="#27272a" strokeWidth="2.5" />

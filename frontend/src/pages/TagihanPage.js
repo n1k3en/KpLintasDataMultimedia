@@ -130,23 +130,25 @@ function TagihanPage({ socket }) {
     <div style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
       <style>{`
         .tagihan-hero {
-          background: var(--primary-dark);
-          border-radius: 0;
-          margin-left: -32px;
-          margin-right: -32px;
-          margin-top: -28px;
-          padding: 40px 48px 90px 48px;
+          background: #004e5a;
+          border-radius: var(--radius-xl);
+          margin-left: 0;
+          margin-right: 0;
+          margin-top: 0;
+          padding: 28px 32px;
           color: white;
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 20px;
           flex-wrap: wrap;
-          margin-bottom: 0px;
-          box-shadow: var(--shadow-md);
+          margin-bottom: 24px;
+          box-shadow: 0 10px 25px -5px rgba(0, 78, 90, 0.25);
+          position: relative;
+          overflow: hidden;
         }
         .tagihan-hero h1 {
-          font-size: 2.1rem;
+          font-size: 1.75rem;
           font-weight: 800;
           color: #ffffff;
           margin-bottom: 6px;
@@ -162,7 +164,7 @@ function TagihanPage({ socket }) {
           display: flex;
           flex-direction: column;
           gap: 24px;
-          margin-top: -50px;
+          margin-top: 0;
           position: relative;
           z-index: 10;
         }
@@ -276,15 +278,11 @@ function TagihanPage({ socket }) {
           <h1>Tagihan Pelanggan</h1>
           <p>Monitor tagihan pelanggan yang hampir jatuh tempo atau sudah melewati batas pembayaran. Ambil tindakan segera untuk meminimalkan tunggakan.</p>
         </div>
-        <Link to="/dashboard/pelanggan" className="btn btn-secondary" style={{
-          background: 'transparent',
-          border: '1.5px solid rgba(255,255,255,0.4)',
-          color: 'white',
+        <Link to="/dashboard/pelanggan" className="btn btn-primary" style={{
+          background: 'var(--md-primary-fixed)',
+          color: 'var(--md-on-primary-fixed-variant)',
           fontWeight: '700'
-        }}
-        onMouseEnter={function(e) { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-        onMouseLeave={function(e) { e.currentTarget.style.background = 'transparent'; }}
-        >
+        }}>
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>group</span>
           Lihat Semua Pelanggan
         </Link>

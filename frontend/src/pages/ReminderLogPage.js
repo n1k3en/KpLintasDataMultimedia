@@ -106,6 +106,11 @@ function ReminderLogPage() {
             className="btn btn-primary"
             onClick={handleTriggerCron}
             disabled={triggering}
+            style={{
+              background: 'var(--md-primary-fixed)',
+              color: 'var(--md-on-primary-fixed-variant)',
+              fontWeight: '700'
+            }}
           >
             <TemplateIcon name="refresh" size={16} style={{ marginRight: '6px' }} /> {triggering ? 'Memproses...' : 'Kirim Reminder Sekarang'}
           </button>
