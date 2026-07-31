@@ -3,6 +3,7 @@ var Tagihan = require('../models/Tagihan');
 var Pelanggan = require('../models/Pelanggan');
 var ReminderLog = require('../models/ReminderLog');
 var EmailService = require('./emailService');
+var PdfService = require('./pdfService');
 var SocketService = require('./socket');
 
 // Helper to calculate difference in days between two dates
@@ -147,7 +148,27 @@ var CronService = {
 
         message += `Silakan lakukan pembayaran dan konfirmasi melalui portal kami:\n${paymentUrl}\n\nAbaikan pesan ini jika Anda sudah melakukan pembayaran. Terima kasih.`;
 
-        // Send via Email
+        // Generate PDF Invoice for reminder (isPaid = false)
+        var pdfBuffer = null;
+        try {
+          pdfBuffer = await PdfService.generateInvoicePdf({
+            id_tagihan: bill.id_tagihan,
+            periode: bill.periode,
+            nominal: bill.nominal,
+            status: bill.status,
+            due_date: bill.due_date,
+            created_at: bill.created_at || new Date(),
+            nama: name,
+            email: email,
+            no_hp: bill.no_hp || '-',
+            alamat: bill.alamat || '-',
+            paket: bill.paket || '-'
+          }, false);
+        } catch (pdfErr) {
+          console.error('[Cron Service] Failed to generate PDF invoice:', pdfErr.message);
+        }
+
+        // Send via Email with PDF attachment
         var result = await EmailService.sendReminderEmail(email, {
           nama: name,
           periode: periode,
@@ -156,8 +177,10 @@ var CronService = {
           paymentUrl: paymentUrl,
           daysDiff: daysDiff,
           paket: bill.paket || '-',
-          idPelanggan: idPelanggan
-        });
+          idPelanggan: idPelanggan,
+          idTagihan: bill.id_tagihan,
+          alamat: bill.alamat || '-'
+        }, pdfBuffer);
 
         // Record in reminder_log dengan datetime (Terkirim masuk database)
         ReminderLog.create({

@@ -4,7 +4,7 @@ var Tagihan = {
   // Ambil semua tagihan
   getAll: function(callback) {
     var sql = `
-      SELECT t.*, p.nama, p.no_hp, p.pppoe_username 
+      SELECT t.*, p.nama, p.no_hp, p.alamat, p.pppoe_username 
       FROM tagihan t 
       JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
       ORDER BY t.due_date DESC
@@ -18,7 +18,7 @@ var Tagihan = {
   // Ambil tagihan yang belum dibayar / terlambat
   getUnpaid: function(callback) {
     var sql = `
-      SELECT t.*, p.nama, p.no_hp, p.pppoe_username, p.status_tagihan, p.email, p.paket, p.id_pelanggan AS pelanggan_id 
+      SELECT t.*, p.nama, p.no_hp, p.alamat, p.pppoe_username, p.status_tagihan, p.email, p.paket, p.id_pelanggan AS pelanggan_id 
       FROM tagihan t 
       JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
       WHERE t.status IN ('belum_bayar', 'terlambat')

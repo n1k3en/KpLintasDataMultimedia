@@ -198,6 +198,26 @@ router.post('/midtrans-callback', function (req, res) {
                   };
                   var metodeLengkap = metodeMap[payment_type] || ('Midtrans (' + payment_type.replace(/_/g, ' ') + ')');
 
+                  var pdfBuffer = null;
+                  try {
+                    var PdfService = require('../services/pdfService');
+                    pdfBuffer = await PdfService.generateInvoicePdf({
+                      id_tagihan: id_tagihan,
+                      periode: billing.periode,
+                      nominal: billing.nominal,
+                      status: 'lunas',
+                      due_date: newDueDateString,
+                      created_at: new Date(),
+                      nama: billing.nama,
+                      email: billing.email,
+                      no_hp: billing.no_hp || '-',
+                      alamat: billing.alamat || '-',
+                      paket: billing.paket || '-'
+                    }, true);
+                  } catch (pdfErr) {
+                    console.error('[Midtrans Callback] Failed to generate PDF invoice:', pdfErr.message);
+                  }
+
                   await EmailService.sendPaymentApprovedEmail(billing.email, {
                     nama: billing.nama,
                     periode: billing.periode,
@@ -205,7 +225,7 @@ router.post('/midtrans-callback', function (req, res) {
                     dueDateFormatted: dueDateFormatted,
                     tanggalBayar: tglBayarStr,
                     metodePembayaran: metodeLengkap
-                  });
+                  }, pdfBuffer);
                 } catch (emailErr) {
                   console.error('[Midtrans Callback] Failed to send confirmation email:', emailErr.message);
                 }
@@ -669,6 +689,35 @@ router.get('/payments', function (req, res) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
     res.json({ success: true, data: results });
+  });
+});
+
+/* GET /api/customer/portal/invoice/:id_tagihan/pdf - Download or view PDF Invoice for Customer */
+router.get('/invoice/:id_tagihan/pdf', function(req, res) {
+  var idTagihan = req.params.id_tagihan;
+  var customerId = req.customerId;
+  var PdfService = require('../services/pdfService');
+
+  var sql = `
+    SELECT t.*, p.nama, p.no_hp, p.email, p.alamat, p.paket 
+    FROM tagihan t 
+    JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+    WHERE t.id_tagihan = ? AND t.id_pelanggan = ?
+  `;
+  db.query(sql, [idTagihan, customerId], async function(err, results) {
+    if (err || !results || results.length === 0) {
+      return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan atau bukan milik Anda.' });
+    }
+    var bill = results[0];
+    var isPaid = bill.status === 'lunas';
+    try {
+      var pdfBuffer = await PdfService.generateInvoicePdf(bill, isPaid);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="Invoice_${bill.periode}_${idTagihan}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (pdfErr) {
+      res.status(500).json({ success: false, message: 'Gagal membuat PDF invoice', error: pdfErr.message });
+    }
   });
 });
 

@@ -5,6 +5,7 @@ var Tagihan = require('../models/Tagihan');
 var Pelanggan = require('../models/Pelanggan');
 var MikrotikService = require('../services/mikrotik');
 var EmailService = require('../services/emailService');
+var PdfService = require('../services/pdfService');
 var SocketService = require('../services/socket');
 var verifyToken = require('../middleware/auth');
 
@@ -141,7 +142,7 @@ router.post('/:id/approve', function(req, res) {
               }
             }
 
-            // 6. Send Email confirmation of approval
+            // 6. Send Email confirmation of approval with Paid Invoice PDF
             if (payment.email) {
               var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', {
                 day: 'numeric',
@@ -157,6 +158,26 @@ router.post('/:id/approve', function(req, res) {
                 minute: '2-digit'
               });
 
+              var pdfBuffer = null;
+              try {
+                var custData = await new Promise(resolve => Pelanggan.getById(payment.id_pelanggan, (err, c) => resolve(c || {})));
+                pdfBuffer = await PdfService.generateInvoicePdf({
+                  id_tagihan: payment.id_tagihan,
+                  periode: payment.periode,
+                  nominal: payment.nominal,
+                  status: 'lunas',
+                  due_date: newDueDateString,
+                  created_at: payment.tanggal_upload || new Date(),
+                  nama: payment.nama,
+                  email: payment.email,
+                  no_hp: payment.no_hp || '-',
+                  alamat: custData.alamat || '-',
+                  paket: custData.paket || '-'
+                }, true);
+              } catch (pdfErr) {
+                console.error('[Pembayaran] Gagal membuat PDF invoice lunas:', pdfErr.message);
+              }
+
               await EmailService.sendPaymentApprovedEmail(payment.email, {
                 nama: payment.nama,
                 periode: payment.periode,
@@ -164,7 +185,7 @@ router.post('/:id/approve', function(req, res) {
                 dueDateFormatted: dueDateFormatted,
                 tanggalBayar: tglBayarStr,
                 metodePembayaran: 'Manual Transfer Bank'
-              });
+              }, pdfBuffer);
             } else {
               console.log('[Pembayaran] Pelanggan tidak memiliki email, notifikasi dilewati.');
             }
@@ -272,6 +293,33 @@ router.post('/:id/reject', function(req, res) {
         });
       });
     });
+  });
+});
+
+/* GET /api/pembayaran/invoice/:id_tagihan/pdf - Download or view PDF Invoice */
+router.get('/invoice/:id_tagihan/pdf', function(req, res) {
+  var idTagihan = req.params.id_tagihan;
+  var db = require('../config/db');
+  var sql = `
+    SELECT t.*, p.nama, p.no_hp, p.email, p.alamat, p.paket 
+    FROM tagihan t 
+    JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+    WHERE t.id_tagihan = ?
+  `;
+  db.query(sql, [idTagihan], async function(err, results) {
+    if (err || !results || results.length === 0) {
+      return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan.' });
+    }
+    var bill = results[0];
+    var isPaid = bill.status === 'lunas';
+    try {
+      var pdfBuffer = await PdfService.generateInvoicePdf(bill, isPaid);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="Invoice_${bill.periode}_${idTagihan}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (pdfErr) {
+      res.status(500).json({ success: false, message: 'Gagal membuat PDF invoice', error: pdfErr.message });
+    }
   });
 });
 
