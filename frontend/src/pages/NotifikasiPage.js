@@ -173,17 +173,15 @@ function NotifikasiPage({ socket }) {
       <div className="page-header">
         <div>
           <h1>Notifikasi Pembayaran</h1>
-          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans & Duitku.</p>
+          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans.</p>
         </div>
-        <div>
-          <button
-            className="btn btn-primary"
-            onClick={handleMarkAllRead}
-            disabled={notifs.filter(function(n) { return n.status_baca === 0; }).length === 0}
-          >
-            <TemplateIcon name="check" size={16} style={{ marginRight: '6px' }} /> Tandai Semua Dibaca
-          </button>
-        </div>
+        <button className="btn btn-primary" onClick={handleMarkAllRead} disabled={notifs.filter(function(n) { return n.status_baca === 0; }).length === 0} style={{
+          background: 'var(--md-primary-fixed)',
+          color: 'var(--md-on-primary-fixed-variant)',
+          fontWeight: '700'
+        }}>
+          <TemplateIcon name="check" size={16} style={{ marginRight: '6px' }} /> Tandai Semua Dibaca
+        </button>
       </div>
 
       {/* Tabs Filter */}
