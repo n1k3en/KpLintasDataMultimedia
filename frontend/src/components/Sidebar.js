@@ -66,6 +66,7 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
           badge: pendingCount,
           subItems: [
             { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual', badge: pendingCount },
+            { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
             { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
           ]
         }

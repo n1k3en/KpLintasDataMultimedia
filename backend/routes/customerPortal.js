@@ -29,9 +29,9 @@ router.post('/duitku-callback', function (req, res) {
 
   var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
 
-  // MD5 signature verification: md5(merchantCode + amount + merchantOrderId + apiKey)
-  var rawString = merchantCode + amount + merchantOrderId + apiKey;
-  var computedSignature = crypto.createHash('md5').update(rawString).digest('hex');
+  // HMAC-SHA256 signature verification: HMAC_SHA256(merchantCode + amount + merchantOrderId, apiKey)
+  var stringToSign = merchantCode + amount + merchantOrderId;
+  var computedSignature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
 
   if (computedSignature.toLowerCase() !== signature.toLowerCase()) {
     console.error('[Duitku Callback] Invalid Signature! Verification failed.');
@@ -943,19 +943,23 @@ router.post('/duitku-payment', function (req, res) {
     var orderId = 'TRX-DUITKU-' + id_tagihan + '-' + Date.now();
     var amount = Math.round(Number(billing.nominal));
 
-    // MD5 Signature: md5(merchantCode + orderId + amount + apiKey)
-    var signature = crypto.createHash('md5').update(merchantCode + orderId + amount + apiKey).digest('hex');
+    // HMAC-SHA256 Signature: HMAC_SHA256(merchantCode + orderId + amount, apiKey)
+    var stringToSign = merchantCode + orderId + amount;
+    var signature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
 
     var duitkuInquiryUrl = isSandbox
       ? 'https://sandbox.duitku.com/webapi/api/merchant/v2/inquiry'
       : 'https://passport.duitku.com/webapi/api/merchant/v2/inquiry';
 
+    // Gunakan APP_URL (ngrok) agar server Duitku bisa menghubungi callback endpoint
+    var appUrl = ConfigService.get('APP_URL', process.env.APP_URL || '');
     var hostHeader = req.get('host');
     var protocol = req.protocol;
-    var baseUrl = protocol + '://' + hostHeader;
+    var localBaseUrl = protocol + '://' + hostHeader;
+    var baseUrl = appUrl || localBaseUrl;
 
     var callbackUrl = baseUrl + '/api/customer/portal/duitku-callback';
-    var returnUrl = req.get('referer') || (baseUrl + '/portal');
+    var returnUrl = req.get('referer') || (localBaseUrl + '/portal');
 
     var methodCode = paymentMethod || 'VC'; // Default to 'VC' if not specified
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Link } from 'react-router-dom';
 import axios from 'axios';
 import Modal from '../components/Modal';
 import TemplateIcon from '../components/TemplateIcon';
@@ -9,7 +9,7 @@ function PembayaranPage({ socket }) {
   var [pendingPayments, setPendingPayments] = useState([]);
   var [loading, setLoading] = useState(true);
   var location = useLocation();
-  var queryType = new URLSearchParams(location.search).get('type') || 'manual'; // 'manual' or 'midtrans'
+  var queryType = new URLSearchParams(location.search).get('type') || 'manual'; // 'manual', 'duitku', or 'midtrans'
 
   // Modals state
   var [viewBukti, setViewBukti] = useState(null); // holds payment object
@@ -49,9 +49,13 @@ function PembayaranPage({ socket }) {
   async function fetchPending() {
     setLoading(true);
     try {
-      var url = queryType === 'midtrans'
-        ? `${API_BASE_URL}/api/pembayaran/midtrans`
-        : `${API_BASE_URL}/api/pembayaran/pending`;
+      var url = `${API_BASE_URL}/api/pembayaran/pending`;
+      if (queryType === 'duitku') {
+        url = `${API_BASE_URL}/api/pembayaran/duitku`;
+      } else if (queryType === 'midtrans') {
+        url = `${API_BASE_URL}/api/pembayaran/midtrans`;
+      }
+
       var response = await axios.get(url, { headers: headers });
       if (response.data.success) {
         setPendingPayments(response.data.data);
@@ -106,7 +110,7 @@ function PembayaranPage({ socket }) {
     }
   }
 
-  function parseMidtransBukti(buktiStr) {
+  function parseOnlineBukti(buktiStr) {
     if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', status: 'Selesai' };
     var parts = buktiStr.split(' / ');
     var gateway = parts[0] || 'Online';
@@ -114,8 +118,12 @@ function PembayaranPage({ socket }) {
     var rawStatus = parts[2] || 'success';
 
     var tipeMap = {
+      'LQ': 'QRIS (Gopay/OVO/Dana/LinkAja/All Bank)',
+      'SP': 'ShopeePay',
+      'I1': 'Minimarket (Indomaret/Alfamart)',
+      'VC': 'Kartu Kredit / Debit',
       'bank_transfer': 'Virtual Account (VA)',
-      'qris': 'QRIS (Gopay/OVO/Dana/LinkAja)',
+      'qris': 'QRIS',
       'credit_card': 'Kartu Kredit',
       'gopay': 'GoPay',
       'shopeepay': 'ShopeePay',
@@ -123,6 +131,7 @@ function PembayaranPage({ socket }) {
     };
 
     var statusMap = {
+      '00': 'Sukses (00)',
       'settlement': 'Sukses (Settlement)',
       'capture': 'Sukses (Captured)',
       'success': 'Sukses',
@@ -163,13 +172,56 @@ function PembayaranPage({ socket }) {
     });
   }
 
+  var getTitle = function () {
+    if (queryType === 'duitku') return 'Riwayat Pembayaran Duitku Gateway';
+    if (queryType === 'midtrans') return 'Riwayat Pembayaran Midtrans Gateway';
+    return 'Persetujuan Pembayaran Transfer Manual';
+  };
+
+  var getSubTitle = function () {
+    if (queryType === 'duitku') return 'Daftar transaksi pembayaran tagihan otomatis via Duitku Gateway (QRIS, VA, ShopeePay, Minimarket, dll).';
+    if (queryType === 'midtrans') return 'Daftar transaksi pembayaran tagihan otomatis via Midtrans Gateway.';
+    return 'Verifikasi bukti transfer dari pelanggan dan aktifkan kembali layanan internet mereka.';
+  };
+
+  var getEmptyMessage = function () {
+    if (queryType === 'duitku') return 'Belum ada transaksi pembayaran via Duitku Gateway.';
+    if (queryType === 'midtrans') return 'Belum ada transaksi pembayaran via Midtrans Gateway.';
+    return 'Tidak ada pengajuan pembayaran pending saat ini. Semua bersih!';
+  };
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <h1>{queryType === 'midtrans' ? 'Riwayat Pembayaran Online Instan' : 'Persetujuan Pembayaran'}</h1>
-          <p>{queryType === 'midtrans' ? 'Daftar transaksi pembayaran tagihan otomatis via Midtrans & Duitku.' : 'Verifikasi bukti transfer dari pelanggan dan aktifkan kembali layanan internet mereka.'}</p>
+          <h1>{getTitle()}</h1>
+          <p>{getSubTitle()}</p>
         </div>
+      </div>
+
+      {/* Payment Gateway Filter Tabs */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <Link
+          to="/dashboard/pembayaran?type=manual"
+          className={'btn ' + (queryType === 'manual' ? 'btn-primary' : 'btn-secondary')}
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <TemplateIcon name="camera" size={16} /> Transfer Manual (Pending)
+        </Link>
+        <Link
+          to="/dashboard/pembayaran?type=duitku"
+          className={'btn ' + (queryType === 'duitku' ? 'btn-primary' : 'btn-secondary')}
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Duitku Gateway
+        </Link>
+        <Link
+          to="/dashboard/pembayaran?type=midtrans"
+          className={'btn ' + (queryType === 'midtrans' ? 'btn-primary' : 'btn-secondary')}
+          style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>shield</span> Midtrans Gateway
+        </Link>
       </div>
 
       {successMsg && (
@@ -182,7 +234,7 @@ function PembayaranPage({ socket }) {
         <div className="table-header">
           <h3>
             <TemplateIcon name="document" size={18} style={{ marginRight: '8px' }} />
-            {queryType === 'midtrans' ? `Transaksi Sukses (${pendingPayments.length})` : `Antrean Verifikasi (${pendingPayments.length})`}
+            {queryType !== 'manual' ? `Transaksi Sukses (${pendingPayments.length})` : `Antrean Verifikasi (${pendingPayments.length})`}
           </h3>
         </div>
 
@@ -195,7 +247,7 @@ function PembayaranPage({ socket }) {
         ) : pendingPayments.length === 0 ? (
           <div className="table-empty">
             <div className="table-empty-icon"><TemplateIcon name="check" size={28} /></div>
-            <p>{queryType === 'midtrans' ? 'Belum ada transaksi Midtrans.' : 'Tidak ada pengajuan pembayaran pending saat ini. Semua bersih!'}</p>
+            <p>{getEmptyMessage()}</p>
           </div>
         ) : (
           <table className="data-table">
@@ -206,8 +258,8 @@ function PembayaranPage({ socket }) {
                 <th>No HP</th>
                 <th>Periode Tagihan</th>
                 <th>Nominal</th>
-                <th>{queryType === 'midtrans' ? 'Waktu Transaksi' : 'Waktu Upload'}</th>
-                <th>{queryType === 'midtrans' ? 'Detail' : 'Bukti Transfer'}</th>
+                <th>{queryType !== 'manual' ? 'Waktu Transaksi' : 'Waktu Upload'}</th>
+                <th>{queryType !== 'manual' ? 'Detail' : 'Bukti Transfer'}</th>
                 <th>Aksi</th>
               </tr>
             </thead>
@@ -323,13 +375,13 @@ function PembayaranPage({ socket }) {
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Metode Pembayaran</span>
                   <span style={{ fontWeight: '600', fontSize: '0.88rem' }}>
-                    {parseMidtransBukti(viewBukti.bukti_file).tipe}
+                    {parseOnlineBukti(viewBukti.bukti_file).tipe}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Status Transaksi</span>
                   <span className="status-badge hijau" style={{ fontSize: '0.78rem' }}>
-                    {parseMidtransBukti(viewBukti.bukti_file).status}
+                    {parseOnlineBukti(viewBukti.bukti_file).status}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>

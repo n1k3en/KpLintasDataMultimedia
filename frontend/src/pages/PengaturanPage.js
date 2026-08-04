@@ -60,7 +60,8 @@ function PengaturanPage() {
   var [duitku, setDuitku] = useState({
     isSandbox: true,
     merchantCode: '',
-    apiKey: ''
+    apiKey: '',
+    appUrl: ''
   });
 
   // Reminder settings state
@@ -122,7 +123,8 @@ function PengaturanPage() {
           setDuitku({
             isSandbox: cfg.DUITKU_IS_SANDBOX === 'true',
             merchantCode: cfg.DUITKU_MERCHANT_CODE || '',
-            apiKey: cfg.DUITKU_API_KEY || ''
+            apiKey: cfg.DUITKU_API_KEY || '',
+            appUrl: cfg.APP_URL || ''
           });
 
           setReminder({
@@ -275,6 +277,7 @@ function PengaturanPage() {
       DUITKU_MERCHANT_CODE: duitku.merchantCode,
       DUITKU_API_KEY: duitku.apiKey,
       DUITKU_IS_SANDBOX: String(duitku.isSandbox),
+      APP_URL: duitku.appUrl,
 
       REMINDER_DUE_DAYS: reminder.dueDays,
       REMINDER_AUTO_SEND: String(reminder.autoSend),
@@ -922,7 +925,7 @@ function PengaturanPage() {
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: '24px' }}>
+                <div className="form-group" style={{ marginBottom: '20px' }}>
                   <label>API Key / Secret Key Duitku (DUITKU_API_KEY) *</label>
                   <input
                     type="password"
@@ -932,6 +935,19 @@ function PengaturanPage() {
                   />
                   <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                     Kunci rahasia API Duitku yang digunakan untuk menghasilkan Signature MD5 transaksi & webhook.
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '24px' }}>
+                  <label>Webhook / Callback URL (APP_URL) *</label>
+                  <input
+                    type="text"
+                    value={duitku.appUrl}
+                    placeholder="e.g. https://subdomain.ngrok-free.dev"
+                    onChange={function (e) { setDuitku({ ...duitku, appUrl: e.target.value }); }}
+                  />
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    URL publik (ngrok) agar server Duitku & Midtrans dapat mengirim callback pembayaran ke backend Anda. Contoh: <strong>https://abcdef.ngrok-free.dev</strong>
                   </div>
                 </div>
               </div>
