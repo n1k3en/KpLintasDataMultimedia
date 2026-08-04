@@ -124,6 +124,9 @@ var ConfigService = {
       DUITKU_API_KEY: this.get('DUITKU_API_KEY', ''),
       DUITKU_IS_SANDBOX: this.get('DUITKU_IS_SANDBOX', 'true'),
 
+      // Webhook / Callback Base URL (ngrok URL untuk development)
+      APP_URL: this.get('APP_URL', ''),
+
       // Reminder Settings
       REMINDER_DUE_DAYS: this.get('REMINDER_DUE_DAYS', '3'),
       REMINDER_AUTO_SEND: this.get('REMINDER_AUTO_SEND', 'true'),
