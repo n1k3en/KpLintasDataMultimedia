@@ -111,23 +111,52 @@ function PembayaranPage({ socket }) {
   }
 
   function parseOnlineBukti(buktiStr) {
-    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', status: 'Selesai' };
+    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', bank: '-', status: 'Selesai' };
     var parts = buktiStr.split(' / ');
-    var gateway = parts[0] || 'Online';
-    var rawType = parts[1] || 'automatic';
-    var rawStatus = parts[2] || 'success';
+    var gateway = (parts[0] || 'Online').trim();
+    var rawType = (parts[1] || 'automatic').trim();
+    var rawStatus = (parts[2] || 'success').trim();
 
-    var tipeMap = {
-      'LQ': 'QRIS (Gopay/OVO/Dana/LinkAja/All Bank)',
-      'SP': 'ShopeePay',
-      'I1': 'Minimarket (Indomaret/Alfamart)',
-      'VC': 'Kartu Kredit / Debit',
-      'bank_transfer': 'Virtual Account (VA)',
-      'qris': 'QRIS',
-      'credit_card': 'Kartu Kredit',
-      'gopay': 'GoPay',
-      'shopeepay': 'ShopeePay',
-      'cstore': 'Minimarket (Indomaret/Alfamart)'
+    var channelInfoMap = {
+      // Duitku Virtual Account Codes
+      'BC': { label: 'Virtual Account', bank: 'Bank BCA (Virtual Account)' },
+      'M2': { label: 'Virtual Account', bank: 'Bank Mandiri (Virtual Account H2H)' },
+      'BR': { label: 'Virtual Account', bank: 'Bank BRI (Virtual Account)' },
+      'I1': { label: 'Virtual Account', bank: 'Bank BNI (Virtual Account)' },
+      'BV': { label: 'Virtual Account', bank: 'Bank BSI (Bank Syariah Indonesia VA)' },
+      'NC': { label: 'Virtual Account', bank: 'Bank Neo Commerce (BNC VA)' },
+      'AG': { label: 'Virtual Account', bank: 'Bank Artha Graha (Virtual Account)' },
+      'SP': { label: 'Virtual Account / E-Wallet', bank: 'Bank Sahabat Sampoerna / ShopeePay' },
+      
+      // Duitku QRIS & E-Wallets
+      'LQ': { label: 'QRIS Real-Time', bank: 'QRIS (Semua Bank & E-Wallet)' },
+      'OV': { label: 'E-Wallet', bank: 'OVO' },
+      'DA': { label: 'E-Wallet', bank: 'DANA' },
+      'LA': { label: 'E-Wallet', bank: 'LinkAja' },
+      
+      // Duitku Retail & Card
+      'IR': { label: 'Minimarket', bank: 'Indomaret' },
+      'FT': { label: 'Gerai Retail', bank: 'Retail / Alfamart / Pos Indonesia' },
+      'VC': { label: 'Kartu Kredit / Debit', bank: 'Kartu Kredit / Debit Online' },
+
+      // Midtrans Types
+      'bank_transfer': { label: 'Virtual Account', bank: 'Virtual Account (Transfer Bank)' },
+      'echannel': { label: 'Virtual Account', bank: 'Bank Mandiri (Bill Payment / VA)' },
+      'bca': { label: 'Virtual Account', bank: 'Bank BCA (Virtual Account)' },
+      'bni': { label: 'Virtual Account', bank: 'Bank BNI (Virtual Account)' },
+      'bri': { label: 'Virtual Account', bank: 'Bank BRI (Virtual Account)' },
+      'permata': { label: 'Virtual Account', bank: 'Bank Permata (Virtual Account)' },
+      'cimb': { label: 'Virtual Account', bank: 'Bank CIMB Niaga (Virtual Account)' },
+      'qris': { label: 'QRIS Real-Time', bank: 'QRIS (Gopay/OVO/Dana/LinkAja/Semua Bank)' },
+      'gopay': { label: 'E-Wallet', bank: 'GoPay / GoPay Later' },
+      'shopeepay': { label: 'E-Wallet', bank: 'ShopeePay / SPayLater' },
+      'cstore': { label: 'Minimarket', bank: 'Minimarket (Indomaret / Alfamart)' },
+      'credit_card': { label: 'Kartu Kredit', bank: 'Kartu Kredit (Visa / Mastercard / JCB)' }
+    };
+
+    var matched = channelInfoMap[rawType] || channelInfoMap[rawType.toLowerCase()] || {
+      label: rawType.replace(/_/g, ' ').toUpperCase(),
+      bank: rawType.replace(/_/g, ' ').toUpperCase()
     };
 
     var statusMap = {
@@ -143,7 +172,8 @@ function PembayaranPage({ socket }) {
 
     return {
       gateway: gateway,
-      tipe: gateway + ' (' + (tipeMap[rawType] || rawType.replace(/_/g, ' ').toUpperCase()) + ')',
+      tipe: gateway + ' (' + matched.label + ')',
+      bank: matched.bank,
       status: statusMap[rawStatus] || rawStatus.toUpperCase()
     };
   }
@@ -376,6 +406,12 @@ function PembayaranPage({ socket }) {
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Metode Pembayaran</span>
                   <span style={{ fontWeight: '600', fontSize: '0.88rem' }}>
                     {parseOnlineBukti(viewBukti.bukti_file).tipe}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Bank / Saluran Pembayaran</span>
+                  <span style={{ fontWeight: '700', color: 'var(--md-primary, #006876)', fontSize: '0.88rem' }}>
+                    {parseOnlineBukti(viewBukti.bukti_file).bank}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>

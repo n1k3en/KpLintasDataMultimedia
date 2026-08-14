@@ -51,23 +51,59 @@ function NotifikasiPage({ socket }) {
   }, [location.search, notifs]);
 
   function parseMidtransBukti(buktiStr) {
-    if (!buktiStr) return { tipe: 'Midtrans', status: 'Selesai' };
+    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', bank: '-', status: 'Selesai' };
     var parts = buktiStr.split(' / ');
-    var rawType = parts[1] || 'automatic';
-    var rawStatus = parts[2] || 'settlement';
+    var gateway = (parts[0] || 'Online').trim();
+    var rawType = (parts[1] || 'automatic').trim();
+    var rawStatus = (parts[2] || 'settlement').trim();
 
-    var tipeMap = {
-      'bank_transfer': 'Virtual Account (VA)',
-      'qris': 'QRIS (Gopay/OVO/Dana/LinkAja)',
-      'credit_card': 'Kartu Kredit',
-      'gopay': 'GoPay',
-      'shopeepay': 'ShopeePay',
-      'cstore': 'Minimarket (Indomaret/Alfamart)'
+    var channelInfoMap = {
+      // Duitku Virtual Account Codes
+      'BC': { label: 'Virtual Account', bank: 'Bank BCA (Virtual Account)' },
+      'M2': { label: 'Virtual Account', bank: 'Bank Mandiri (Virtual Account H2H)' },
+      'BR': { label: 'Virtual Account', bank: 'Bank BRI (Virtual Account)' },
+      'I1': { label: 'Virtual Account', bank: 'Bank BNI (Virtual Account)' },
+      'BV': { label: 'Virtual Account', bank: 'Bank BSI (Bank Syariah Indonesia VA)' },
+      'NC': { label: 'Virtual Account', bank: 'Bank Neo Commerce (BNC VA)' },
+      'AG': { label: 'Virtual Account', bank: 'Bank Artha Graha (Virtual Account)' },
+      'SP': { label: 'Virtual Account / E-Wallet', bank: 'Bank Sahabat Sampoerna / ShopeePay' },
+      
+      // Duitku QRIS & E-Wallets
+      'LQ': { label: 'QRIS Real-Time', bank: 'QRIS (Semua Bank & E-Wallet)' },
+      'OV': { label: 'E-Wallet', bank: 'OVO' },
+      'DA': { label: 'E-Wallet', bank: 'DANA' },
+      'LA': { label: 'E-Wallet', bank: 'LinkAja' },
+      
+      // Duitku Retail & Card
+      'IR': { label: 'Minimarket', bank: 'Indomaret' },
+      'FT': { label: 'Gerai Retail', bank: 'Retail / Alfamart / Pos Indonesia' },
+      'VC': { label: 'Kartu Kredit / Debit', bank: 'Kartu Kredit / Debit Online' },
+
+      // Midtrans Types
+      'bank_transfer': { label: 'Virtual Account', bank: 'Virtual Account (Transfer Bank)' },
+      'echannel': { label: 'Virtual Account', bank: 'Bank Mandiri (Bill Payment / VA)' },
+      'bca': { label: 'Virtual Account', bank: 'Bank BCA (Virtual Account)' },
+      'bni': { label: 'Virtual Account', bank: 'Bank BNI (Virtual Account)' },
+      'bri': { label: 'Virtual Account', bank: 'Bank BRI (Virtual Account)' },
+      'permata': { label: 'Virtual Account', bank: 'Bank Permata (Virtual Account)' },
+      'cimb': { label: 'Virtual Account', bank: 'Bank CIMB Niaga (Virtual Account)' },
+      'qris': { label: 'QRIS Real-Time', bank: 'QRIS (Gopay/OVO/Dana/LinkAja/Semua Bank)' },
+      'gopay': { label: 'E-Wallet', bank: 'GoPay / GoPay Later' },
+      'shopeepay': { label: 'E-Wallet', bank: 'ShopeePay / SPayLater' },
+      'cstore': { label: 'Minimarket', bank: 'Minimarket (Indomaret / Alfamart)' },
+      'credit_card': { label: 'Kartu Kredit', bank: 'Kartu Kredit (Visa / Mastercard / JCB)' }
+    };
+
+    var matched = channelInfoMap[rawType] || channelInfoMap[rawType.toLowerCase()] || {
+      label: rawType.replace(/_/g, ' ').toUpperCase(),
+      bank: rawType.replace(/_/g, ' ').toUpperCase()
     };
 
     var statusMap = {
+      '00': 'Sukses (00)',
       'settlement': 'Sukses (Settlement)',
       'capture': 'Sukses (Captured)',
+      'success': 'Sukses',
       'pending': 'Tertunda (Pending)',
       'deny': 'Ditolak (Denied)',
       'expire': 'Kadaluarsa (Expired)',
@@ -75,7 +111,9 @@ function NotifikasiPage({ socket }) {
     };
 
     return {
-      tipe: tipeMap[rawType] || rawType.replace(/_/g, ' ').toUpperCase(),
+      gateway: gateway,
+      tipe: gateway + ' (' + matched.label + ')',
+      bank: matched.bank,
       status: statusMap[rawStatus] || rawStatus.toUpperCase()
     };
   }
@@ -374,7 +412,13 @@ function NotifikasiPage({ socket }) {
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Status Midtrans</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Bank / Saluran Pembayaran</span>
+                <span style={{ fontWeight: '700', color: 'var(--md-primary, #006876)', fontSize: '0.88rem' }}>
+                  {parseMidtransBukti(viewMidtransDetail.bukti_file).bank}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Status Transaksi</span>
                 <span className="status-badge hijau" style={{ fontSize: '0.78rem' }}>
                   {parseMidtransBukti(viewMidtransDetail.bukti_file).status}
                 </span>

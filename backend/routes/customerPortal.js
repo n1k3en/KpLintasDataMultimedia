@@ -29,11 +29,15 @@ router.post('/duitku-callback', function (req, res) {
 
   var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
 
-  // HMAC-SHA256 signature verification: HMAC_SHA256(merchantCode + amount + merchantOrderId, apiKey)
+  // Support both MD5 and HMAC-SHA256 signature verification for Duitku Callback
   var stringToSign = merchantCode + amount + merchantOrderId;
-  var computedSignature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
+  var hmacSignature = crypto.createHmac('sha256', apiKey).update(stringToSign).digest('hex');
+  var md5Signature = crypto.createHash('md5').update(merchantCode + amount + merchantOrderId + apiKey).digest('hex');
 
-  if (computedSignature.toLowerCase() !== signature.toLowerCase()) {
+  var isSignatureValid = (signature.toLowerCase() === hmacSignature.toLowerCase()) || 
+                         (signature.toLowerCase() === md5Signature.toLowerCase());
+
+  if (!isSignatureValid) {
     console.error('[Duitku Callback] Invalid Signature! Verification failed.');
     return res.status(200).json({ success: false, message: 'Invalid signature' });
   }
@@ -324,7 +328,19 @@ router.post('/midtrans-callback', function (req, res) {
 
       // Proceed with approval flow
       // 2. Create Pembayaran entry with status 'diterima'
-      var relativePath = 'Midtrans / ' + payment_type + ' / ' + transaction_status;
+      var specificChannel = payment_type;
+      if (req.body && req.body.va_numbers && req.body.va_numbers.length > 0 && req.body.va_numbers[0].bank) {
+        specificChannel = req.body.va_numbers[0].bank.toLowerCase();
+      } else if (req.body && req.body.bank) {
+        specificChannel = req.body.bank.toLowerCase();
+      } else if (req.body && req.body.permata_va_number) {
+        specificChannel = 'permata';
+      } else if (req.body && (req.body.bill_key || payment_type === 'echannel')) {
+        specificChannel = 'echannel';
+      } else if (req.body && req.body.store) {
+        specificChannel = req.body.store.toLowerCase();
+      }
+      var relativePath = 'Midtrans / ' + specificChannel + ' / ' + transaction_status;
       var insertSql = `
         INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
         VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
@@ -898,6 +914,61 @@ router.post('/midtrans-token', function (req, res) {
   });
 });
 
+// GET /api/customer/portal/duitku-payment-methods - Get active payment methods from Duitku
+router.get('/duitku-payment-methods', async function (req, res) {
+  var amount = parseInt(req.query.amount, 10) || 100000;
+  var merchantCode = ConfigService.get('DUITKU_MERCHANT_CODE', process.env.DUITKU_MERCHANT_CODE || '');
+  var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
+  var isSandbox = ConfigService.get('DUITKU_IS_SANDBOX', process.env.DUITKU_IS_SANDBOX || 'true') === 'true';
+
+  if (!merchantCode || !apiKey) {
+    return res.status(400).json({
+      success: false,
+      message: 'Payment Gateway Duitku belum dikonfigurasi.'
+    });
+  }
+
+  var now = new Date();
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var datetime = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()) + ' ' +
+                 pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+
+  var stringToSign = merchantCode + amount + datetime + apiKey;
+  var signature = crypto.createHash('sha256').update(stringToSign).digest('hex');
+
+  var url = isSandbox
+    ? 'https://sandbox.duitku.com/webapi/api/merchant/paymentmethod/getpaymentmethod'
+    : 'https://passport.duitku.com/webapi/api/merchant/paymentmethod/getpaymentmethod';
+
+  try {
+    var response = await axios.post(url, {
+      merchantcode: merchantCode,
+      amount: amount,
+      datetime: datetime,
+      signature: signature
+    }, { timeout: 8000 });
+
+    if (response.data && response.data.paymentFee) {
+      return res.json({
+        success: true,
+        data: response.data.paymentFee
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: []
+    });
+  } catch (err) {
+    console.error('[Duitku Payment Methods API] Error:', err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal memuat metode pembayaran dari Duitku.',
+      error: err.response?.data || err.message
+    });
+  }
+});
+
 // POST /api/customer/portal/duitku-payment - Request Duitku Payment URL for a bill
 router.post('/duitku-payment', function (req, res) {
   var { id_tagihan, paymentMethod } = req.body;
@@ -956,9 +1027,10 @@ router.post('/duitku-payment', function (req, res) {
     var hostHeader = req.get('host');
     var protocol = req.protocol;
     var localBaseUrl = protocol + '://' + hostHeader;
-    var baseUrl = appUrl || localBaseUrl;
+    var rawBaseUrl = appUrl || localBaseUrl;
+    var cleanBaseUrl = rawBaseUrl.replace(/\/api\/customer\/portal\/duitku-callback\/?$/i, '').replace(/\/+$/, '');
 
-    var callbackUrl = baseUrl + '/api/customer/portal/duitku-callback';
+    var callbackUrl = cleanBaseUrl + '/api/customer/portal/duitku-callback';
     var returnUrl = req.get('referer') || (localBaseUrl + '/portal');
 
     var methodCode = paymentMethod || 'VC'; // Default to 'VC' if not specified

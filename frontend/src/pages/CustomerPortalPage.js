@@ -28,6 +28,13 @@ function CustomerPortalPage({ onLogout }) {
   var [duitkuLoading, setDuitkuLoading] = useState(false);
   var [duitkuModalOpen, setDuitkuModalOpen] = useState(false);
   var [duitkuSelectedChannel, setDuitkuSelectedChannel] = useState(null);
+  var [duitkuChannels, setDuitkuChannels] = useState([]);
+  var [duitkuChannelsLoading, setDuitkuChannelsLoading] = useState(false);
+  var [duitkuExpandedCategory, setDuitkuExpandedCategory] = useState(null);
+  var [duitkuDetailsOpen, setDuitkuDetailsOpen] = useState(false);
+  var [duitkuOrderId, setDuitkuOrderId] = useState('');
+  var [copiedTip, setCopiedTip] = useState('');
+  var [countdown, setCountdown] = useState(86395);
   var [dropdownOpen, setDropdownOpen] = useState(false);
   var [profileOpen, setProfileOpen] = useState(false);
   var dropdownRef = useRef(null);
@@ -244,6 +251,165 @@ function CustomerPortalPage({ onLogout }) {
     }
   }
 
+  var defaultDuitkuChannels = [
+    // Virtual Account / Transfer Bank
+    { paymentMethod: 'BC', paymentName: 'BCA Virtual Account', paymentImage: 'https://images.duitku.com/hotlink-ok/BCA.SVG', totalFee: '0' },
+    { paymentMethod: 'M2', paymentName: 'Mandiri Virtual Account', paymentImage: 'https://images.duitku.com/hotlink-ok/MV.PNG', totalFee: '0' },
+    { paymentMethod: 'BR', paymentName: 'BRI Virtual Account', paymentImage: 'https://images.duitku.com/hotlink-ok/BR.PNG', totalFee: '0' },
+    { paymentMethod: 'I1', paymentName: 'BNI Virtual Account', paymentImage: 'https://images.duitku.com/hotlink-ok/I1.PNG', totalFee: '0' },
+    { paymentMethod: 'BV', paymentName: 'BSI Virtual Account', paymentImage: 'https://images.duitku.com/hotlink-ok/BSI.PNG', totalFee: '0' },
+    { paymentMethod: 'NC', paymentName: 'BNC (Neo Commerce) VA', paymentImage: 'https://images.duitku.com/hotlink-ok/NC.PNG', totalFee: '0' },
+    { paymentMethod: 'AG', paymentName: 'Bank Artha Graha VA', paymentImage: 'https://images.duitku.com/hotlink-ok/AG.PNG', totalFee: '0' },
+    { paymentMethod: 'SP', paymentName: 'Bank Sahabat Sampoerna VA', paymentImage: 'https://images.duitku.com/hotlink-ok/SP.PNG', totalFee: '0' },
+    
+    // QRIS & E-Wallet
+    { paymentMethod: 'LQ', paymentName: 'QRIS (Semua Bank & E-Wallet)', paymentImage: 'https://images.duitku.com/hotlink-ok/LINKAJA.PNG', totalFee: '0' },
+    { paymentMethod: 'SP', paymentName: 'ShopeePay QRIS', paymentImage: 'https://images.duitku.com/hotlink-ok/SHOPEEPAY.PNG', totalFee: '0' },
+    { paymentMethod: 'OV', paymentName: 'OVO E-Wallet', paymentImage: 'https://images.duitku.com/hotlink-ok/OV.PNG', totalFee: '0' },
+    { paymentMethod: 'DA', paymentName: 'DANA E-Wallet', paymentImage: 'https://images.duitku.com/hotlink-ok/DA.PNG', totalFee: '0' },
+    { paymentMethod: 'LA', paymentName: 'LinkAja E-Wallet', paymentImage: 'https://images.duitku.com/hotlink-ok/LINKAJA.PNG', totalFee: '0' },
+
+    // Minimarket
+    { paymentMethod: 'IR', paymentName: 'Indomaret', paymentImage: 'https://images.duitku.com/hotlink-ok/IR.PNG', totalFee: '0' },
+    { paymentMethod: 'FT', paymentName: 'Retail / Alfamart / Pos', paymentImage: 'https://images.duitku.com/hotlink-ok/RETAIL.PNG', totalFee: '0' },
+
+    // Kartu Kredit
+    { paymentMethod: 'VC', paymentName: 'Kartu Kredit / Debit Online', paymentImage: 'https://images.duitku.com/hotlink-ok/VC.PNG', totalFee: '0' }
+  ];
+
+  async function fetchDuitkuChannels() {
+    if (!billing || !billing.nominal) return;
+    setDuitkuChannelsLoading(true);
+    try {
+      var response = await axios.get(`${API_BASE_URL}/api/customer/portal/duitku-payment-methods?amount=${Math.round(billing.nominal)}`, { headers: headers });
+      if (response.data.success && Array.isArray(response.data.data) && response.data.data.length > 0) {
+        setDuitkuChannels(response.data.data);
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil channel Duitku real-time, menggunakan channel default:', err);
+    } finally {
+      setDuitkuChannelsLoading(false);
+    }
+  }
+
+  useEffect(function () {
+    var timer;
+    if (duitkuModalOpen) {
+      setCountdown(86395); // ~23:59:55
+      timer = setInterval(function () {
+        setCountdown(function (prev) {
+          if (prev <= 0) return 0;
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return function () {
+      if (timer) clearInterval(timer);
+    };
+  }, [duitkuModalOpen]);
+
+  function formatCountdown(sec) {
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return pad(h) + ':' + pad(m) + ':' + pad(s);
+  }
+
+  function handleCopyText(text, label) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedTip(label);
+      setTimeout(function () { setCopiedTip(''); }, 2000);
+    }
+  }
+
+  function handleOpenDuitkuModal() {
+    setDuitkuModalOpen(true);
+    setDuitkuExpandedCategory(null);
+    setDuitkuDetailsOpen(false);
+    setDuitkuOrderId('TRX-DUITKU-' + (billing ? billing.id_tagihan : '0') + '-' + Date.now().toString().slice(-6));
+    fetchDuitkuChannels();
+  }
+
+  function parseDuitkuChannel(item) {
+    var code = item.paymentMethod || item.code || '';
+    var rawName = item.paymentName || item.name || code;
+    var nameUpper = rawName.toUpperCase();
+    var img = item.paymentImage || item.image || '';
+    var fee = item.totalFee && Number(item.totalFee) > 0
+      ? '+Rp ' + Number(item.totalFee).toLocaleString('id-ID')
+      : 'Otomatis Real-time';
+
+    var category = 'va';
+    var categoryLabel = 'Transfer Bank (VA)';
+    var icon = 'account_balance';
+    var iconBg = '#e0f2fe';
+    var iconColor = '#0284c7';
+    var isPopular = false;
+
+    if (code === 'LQ' || nameUpper.includes('QRIS')) {
+      category = 'ewallet';
+      categoryLabel = 'QRIS & E-Wallet';
+      icon = 'qr_code_2';
+      iconBg = '#ecfdf5';
+      iconColor = '#059669';
+      isPopular = true;
+      rawName = 'QRIS (Semua Bank & E-Wallet)';
+    } else if (code === 'BC' || code === 'M2' || code === 'BR' || code === 'I1' || code === 'BV' || code === 'NC' || code === 'AG' || (code === 'SP' && nameUpper.includes('VA')) || nameUpper.includes('VA') || nameUpper.includes('BANK')) {
+      category = 'va';
+      categoryLabel = 'Virtual Account (Transfer Bank)';
+      icon = 'account_balance';
+      iconBg = '#e0f2fe';
+      iconColor = '#0284c7';
+      if (code === 'BC' || code === 'M2' || code === 'BR') isPopular = true;
+      if (code === 'BC') rawName = 'BCA Virtual Account';
+      else if (code === 'M2') rawName = 'Mandiri Virtual Account (H2H)';
+      else if (code === 'BR') rawName = 'BRI Virtual Account';
+      else if (code === 'I1' && nameUpper.includes('BNI')) rawName = 'BNI Virtual Account';
+      else if (code === 'BV') rawName = 'BSI Virtual Account';
+      else if (code === 'NC') rawName = 'BNC (Neo Commerce) VA';
+    } else if (code === 'OV' || code === 'DA' || code === 'LA' || code === 'SP' || code === 'SA' || nameUpper.includes('OVO') || nameUpper.includes('DANA') || nameUpper.includes('LINKAJA') || nameUpper.includes('SHOPEE')) {
+      category = 'ewallet';
+      categoryLabel = 'E-Wallet';
+      icon = 'account_balance_wallet';
+      iconBg = '#fff7ed';
+      iconColor = '#ea580c';
+      if (code === 'SP' || code === 'SA') rawName = 'ShopeePay';
+      else if (code === 'OV') rawName = 'OVO';
+      else if (code === 'DA') rawName = 'DANA';
+      else if (code === 'LA') rawName = 'LinkAja';
+    } else if (code === 'IR' || code === 'FT' || nameUpper.includes('INDOMARET') || nameUpper.includes('ALFAMART') || nameUpper.includes('RETAIL')) {
+      category = 'retail';
+      categoryLabel = 'Minimarket & Retail';
+      icon = 'storefront';
+      iconBg = '#fefce8';
+      iconColor = '#ca8a04';
+      if (code === 'IR') rawName = 'Indomaret';
+      else if (code === 'FT') rawName = 'Retail / Pos / Pegadaian';
+    } else if (code === 'VC' || nameUpper.includes('CREDIT') || nameUpper.includes('CARD')) {
+      category = 'cc';
+      categoryLabel = 'Kartu Kredit / Debit';
+      icon = 'credit_card';
+      iconBg = '#f5f3ff';
+      iconColor = '#7c3aed';
+      rawName = 'Kartu Kredit / Debit Online';
+    }
+
+    return {
+      code: code,
+      name: rawName,
+      image: img,
+      fee: fee,
+      category: category,
+      categoryLabel: categoryLabel,
+      icon: icon,
+      iconBg: iconBg,
+      iconColor: iconColor,
+      isPopular: isPopular
+    };
+  }
+
   function getSelectedOption() {
     return paymentOptions.find(function (opt) { return opt.value === paymentMethod; });
   }
@@ -351,7 +517,7 @@ function CustomerPortalPage({ onLogout }) {
             <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
               QRIS, Virtual Account, ShopeePay, Indomaret, Kartu Kredit & lebih banyak lagi. Pembayaran terverifikasi otomatis secara instan.
             </p>
-            <button type="button" style={{ ...S.btnPrimary }} onClick={function () { setDuitkuModalOpen(true); }}>
+            <button type="button" style={{ ...S.btnPrimary }} onClick={handleOpenDuitkuModal}>
               <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Bayar via Duitku</>
             </button>
           </div>
@@ -616,7 +782,44 @@ function CustomerPortalPage({ onLogout }) {
             var paymentUrl = isOnline ? '#' : `${API_BASE_URL}${pay.bukti_file}`;
             var badgeClass = pay.status === 'diterima' ? 'hijau' : (pay.status === 'ditolak' ? 'merah' : 'kuning');
             var statusText = pay.status === 'diterima' ? 'Lunas / Disetujui' : (pay.status === 'ditolak' ? 'Ditolak' : 'Menunggu Verifikasi');
-            var onlineLabel = pay.bukti_file.startsWith('Duitku') ? 'Pembayaran Online Instan (Duitku)' : 'Pembayaran Online Instan (Midtrans)';
+            var getOnlineDesc = function (fileStr) {
+              if (!fileStr) return 'Pembayaran Online Instan';
+              var parts = fileStr.split(' / ');
+              var gateway = parts[0] || 'Online';
+              var code = (parts[1] || '').trim();
+              var map = {
+                'BC': 'Bank BCA VA',
+                'M2': 'Bank Mandiri VA',
+                'BR': 'Bank BRI VA',
+                'I1': 'Bank BNI VA',
+                'BV': 'Bank BSI (Syariah) VA',
+                'NC': 'Bank Neo Commerce VA',
+                'AG': 'Bank Artha Graha VA',
+                'SP': 'Bank Sahabat Sampoerna VA / ShopeePay',
+                'LQ': 'QRIS Real-Time',
+                'OV': 'OVO',
+                'DA': 'DANA',
+                'LA': 'LinkAja',
+                'IR': 'Indomaret',
+                'FT': 'Retail / Alfamart',
+                'VC': 'Kartu Kredit / Debit',
+                'bank_transfer': 'Virtual Account (VA)',
+                'echannel': 'Bank Mandiri VA',
+                'bca': 'Bank BCA VA',
+                'bni': 'Bank BNI VA',
+                'bri': 'Bank BRI VA',
+                'permata': 'Bank Permata VA',
+                'cimb': 'Bank CIMB Niaga VA',
+                'qris': 'QRIS Real-Time',
+                'gopay': 'GoPay',
+                'shopeepay': 'ShopeePay',
+                'cstore': 'Minimarket (Indomaret/Alfamart)',
+                'credit_card': 'Kartu Kredit'
+              };
+              var channel = map[code] || map[code.toLowerCase()] || code;
+              return gateway + (channel ? ' - ' + channel : '') + ' • Lunas Otomatis';
+            };
+            var onlineLabel = getOnlineDesc(pay.bukti_file);
 
             return (
               <div key={pay.id_pembayaran} className="portal-card" style={{ padding: 24, marginBottom: 0 }}>
@@ -862,125 +1065,433 @@ function CustomerPortalPage({ onLogout }) {
       `}</style>
 
       {/* ============================== */}
-      {/* Duitku Payment Modal (Snap-style popup) */}
+      {/* Duitku Payment Modal (Midtrans Snap Replica UI) */}
       {/* ============================== */}
       {duitkuModalOpen && (
         <div
           onClick={function (e) { if (e.target === e.currentTarget && !duitkuLoading) setDuitkuModalOpen(false); }}
           style={{
             position: 'fixed', inset: 0, zIndex: 9000,
-            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '16px', animation: 'duitkuOverlayIn 0.22s ease-out'
+            padding: '16px', animation: 'snapFadeIn 0.2s ease-out',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'
           }}
         >
           <style>{`
-            @keyframes duitkuOverlayIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes duitkuSlideUp { from { opacity: 0; transform: translateY(28px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-            .duitku-channel-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid rgba(0,104,118,0.08); cursor: pointer; transition: background 0.15s ease; border-radius: 0; }
-            .duitku-channel-item:first-child { border-radius: 12px 12px 0 0; }
-            .duitku-channel-item:last-child { border-bottom: none; border-radius: 0 0 12px 12px; }
-            .duitku-channel-item:hover { background: rgba(0,104,118,0.05); }
-            .duitku-channel-item:active { background: rgba(0,104,118,0.1); }
-            .duitku-channel-icon { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.3rem; font-weight: 700; }
-            .duitku-channel-recommended { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 2px 7px; border-radius: 20px; background: rgba(0,104,118,0.1); color: var(--md-primary); margin-top: 2px; display: inline-block; }
-            .duitku-channel-chevron { color: #c0d0d4; font-size: 1.2rem; margin-left: auto; flex-shrink: 0; }
-            .duitku-channel-spin { animation: spin 0.9s linear infinite; }
+            @keyframes snapFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes snapSlideUp { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+            .snap-modal-card, .snap-modal-card * { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol" !important; box-sizing: border-box; }
+            .snap-modal-card { background: #ffffff; border-radius: 8px; width: 100%; max-width: 390px; box-shadow: 0 16px 48px rgba(0,0,0,0.3); animation: snapSlideUp 0.22s cubic-bezier(0.16,1,0.3,1); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; position: relative; }
+            .snap-test-ribbon { position: absolute; top: 16px; right: -32px; transform: rotate(45deg); background: #ffe600; color: #000000; font-weight: 800; font-size: 11px; padding: 2px 36px; letter-spacing: 0.8px; box-shadow: 0 1px 4px rgba(0,0,0,0.25); z-index: 30; pointer-events: none; }
+            .snap-item-row { padding: 13px 20px; border-bottom: 1px solid #f2f2f2; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background 0.12s ease; background: #ffffff; text-decoration: none; color: inherit; }
+            .snap-item-row:hover { background: #f9fafb; }
+            .snap-item-row:active { background: #f3f4f6; }
+            .snap-sub-item { padding: 11px 20px 11px 32px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; cursor: pointer; background: #f8fafc; transition: background 0.12s ease; }
+            .snap-sub-item:hover { background: #f1f5f9; }
+            .snap-sub-item:active { background: #e2e8f0; }
+            .snap-badge-gopay { display: inline-flex; align-items: center; background: #00aed6; color: #fff; font-weight: 800; font-size: 10px; padding: 1px 6px; border-radius: 3px; line-height: 1.3; }
+            .snap-badge-gopay-later { display: inline-flex; align-items: center; gap: 2px; background: #00aed6; color: #fff; font-weight: 800; font-size: 9px; padding: 1px 5px; border-radius: 3px; line-height: 1.3; }
+            .snap-badge-qris { display: inline-flex; align-items: center; border: 1px solid #2e384d; color: #2e384d; font-weight: 900; font-size: 9px; padding: 0 4px; border-radius: 2px; letter-spacing: -0.3px; line-height: 1.3; }
+            .snap-badge-bank { font-weight: 800; font-size: 10.5px; line-height: 1.3; }
+            .snap-copy-btn { border: none; background: none; cursor: pointer; color: #0070ba; display: inline-flex; align-items: center; padding: 0 4px; font-size: 13px; }
+            .snap-copy-btn:hover { color: #005a9c; }
+            .snap-spin { animation: spin 0.8s linear infinite; }
             @keyframes spin { to { transform: rotate(360deg); } }
           `}</style>
-          <div style={{
-            background: 'white', borderRadius: 20, width: '100%', maxWidth: 420,
-            boxShadow: '0 24px 80px rgba(0,0,0,0.25)',
-            animation: 'duitkuSlideUp 0.25s cubic-bezier(0.34,1.4,0.64,1)',
-            overflow: 'hidden', maxHeight: '90vh', display: 'flex', flexDirection: 'column'
-          }}>
-            {/* Modal Header */}
-            <div style={{ padding: '22px 22px 18px', borderBottom: '1px solid #f0f4f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 4 }}>
-                  Duitku Payment
-                </div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#111827', letterSpacing: '-0.5px' }}>
-                  Rp {billing ? Number(billing.nominal).toLocaleString('id-ID') : '0'}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
-                  Tagihan Periode {billing && billing.periode}
-                </div>
+          
+          <div className="snap-modal-card">
+            {/* Top TEST Ribbon */}
+            <div className="snap-test-ribbon">TEST</div>
+
+            {/* Header: Merchant Title + Close */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #eef2f5', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#2e384d', letterSpacing: '-0.2px' }}>
+                KP Lintas Data Multimedia
               </div>
               {!duitkuLoading && (
                 <button
                   onClick={function () { setDuitkuModalOpen(false); }}
-                  style={{ background: '#f3f4f6', border: 'none', borderRadius: '50%', width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', fontSize: '1.1rem', flexShrink: 0 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#7f8fa4', display: 'flex', alignItems: 'center', padding: 2, lineHeight: 1 }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 18 }}>close</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2e384d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
                 </button>
               )}
             </div>
 
-            {/* Channel List */}
-            <div style={{ overflowY: 'auto', flex: 1 }}>
-              {/* Recommended Section */}
-              <div style={{ padding: '12px 18px 6px', fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                Recommended
-              </div>
-              {[
-                { code: 'LQ', name: 'QRIS', desc: 'Semua Bank & E-Wallet (GoPay, OVO, Dana, LinkAja)', icon: 'qr_code_2', iconBg: '#e0f7fa', iconColor: '#006876', recommended: true }
-              ].map(function (ch) {
-                var isProcessing = duitkuLoading && duitkuSelectedChannel === ch.code;
-                return (
-                  <div key={ch.code} className="duitku-channel-item" onClick={function () { if (!duitkuLoading) handleDuitkuPay(ch.code); }}>
-                    <div className="duitku-channel-icon" style={{ background: ch.iconBg }}>
-                      {isProcessing ? (
-                        <span className="material-symbols-outlined duitku-channel-spin" style={{ fontSize: 22, color: ch.iconColor }}>progress_activity</span>
-                      ) : (
-                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: ch.iconColor }}>{ch.icon}</span>
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{ch.name}</span>
-                        {ch.recommended && <span className="duitku-channel-recommended">Populer</span>}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{isProcessing ? 'Membuat transaksi...' : ch.desc}</div>
-                    </div>
-                    {!duitkuLoading && <span className="material-symbols-outlined duitku-channel-chevron">chevron_right</span>}
+            {/* Order Summary Box (Light Blue/Grey background) */}
+            <div style={{ background: '#f7f9fa', padding: '14px 20px', borderBottom: '1px solid #eef2f5', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: '21px', fontWeight: 700, color: '#2e384d', letterSpacing: '-0.3px', lineHeight: 1.2 }}>
+                      Rp{billing ? Number(billing.nominal).toLocaleString('id-ID') : '0'}
+                    </span>
+                    <button
+                      type="button"
+                      className="snap-copy-btn"
+                      title="Salin nominal"
+                      onClick={function () { handleCopyText(String(billing ? billing.nominal : '0'), 'nominal'); }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0070ba" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
                   </div>
-                );
-              })}
+                  
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <span style={{ fontSize: '11px', color: '#7f8fa4', fontWeight: 400 }}>
+                      Order ID #{duitkuOrderId || ('TRX-' + (billing ? billing.id_tagihan : '0') + '-' + Date.now().toString().slice(-6))}
+                    </span>
+                    <button
+                      type="button"
+                      className="snap-copy-btn"
+                      title="Salin Order ID"
+                      onClick={function () { handleCopyText(duitkuOrderId, 'orderId'); }}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0070ba" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
 
-              {/* All Methods */}
-              <div style={{ padding: '12px 18px 6px', fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                Semua Metode Pembayaran
+                {/* Details Accordion Trigger */}
+                <button
+                  type="button"
+                  onClick={function () { setDuitkuDetailsOpen(!duitkuDetailsOpen); }}
+                  style={{ background: 'none', border: 'none', color: '#0070ba', fontSize: '12px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3, padding: '2px 0' }}
+                >
+                  Details
+                  <span style={{ fontSize: '10px' }}>{duitkuDetailsOpen ? '▲' : '▼'}</span>
+                </button>
               </div>
-              {[
-                { code: 'SP', name: 'ShopeePay', desc: 'Bayar langsung via ShopeePay', icon: 'local_mall', iconBg: '#fff0e6', iconColor: '#ea580c' },
-                { code: 'I1', name: 'Minimarket', desc: 'Bayar di Indomaret / Alfamart', icon: 'storefront', iconBg: '#fef9c3', iconColor: '#854d0e' },
-                { code: 'VC', name: 'Kartu Kredit / Debit', desc: 'Visa, Mastercard, JCB, AmEx', icon: 'credit_card', iconBg: '#ede9fe', iconColor: '#7c3aed' }
-              ].map(function (ch) {
-                var isProcessing = duitkuLoading && duitkuSelectedChannel === ch.code;
-                return (
-                  <div key={ch.code} className="duitku-channel-item" onClick={function () { if (!duitkuLoading) handleDuitkuPay(ch.code); }}>
-                    <div className="duitku-channel-icon" style={{ background: ch.iconBg }}>
-                      {isProcessing ? (
-                        <span className="material-symbols-outlined duitku-channel-spin" style={{ fontSize: 22, color: ch.iconColor }}>progress_activity</span>
-                      ) : (
-                        <span className="material-symbols-outlined" style={{ fontSize: 22, color: ch.iconColor }}>{ch.icon}</span>
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827' }}>{ch.name}</span>
-                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{isProcessing ? 'Membuat transaksi...' : ch.desc}</div>
-                    </div>
-                    {!duitkuLoading && <span className="material-symbols-outlined duitku-channel-chevron">chevron_right</span>}
+
+              {/* Copied Feedback Tip */}
+              {copiedTip && (
+                <div style={{ fontSize: '10px', color: '#059669', fontWeight: 700, marginTop: 4 }}>
+                  ✓ {copiedTip === 'nominal' ? 'Nominal' : 'Order ID'} disalin ke clipboard!
+                </div>
+              )}
+
+              {/* Details Drawer */}
+              {duitkuDetailsOpen && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #cbd5e1', fontSize: '11.5px', color: '#2e384d' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: '#7f8fa4' }}>Periode Tagihan:</span>
+                    <span style={{ fontWeight: 600 }}>{billing && billing.periode}</span>
                   </div>
-                );
-              })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: '#7f8fa4' }}>Nama Pelanggan:</span>
+                    <span style={{ fontWeight: 600 }}>{profileData ? profileData.nama : (customer ? customer.nama : 'Pelanggan')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ color: '#7f8fa4' }}>Paket WiFi:</span>
+                    <span style={{ fontWeight: 600 }}>{billing && billing.paket ? billing.paket : 'Internet Unlimited'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid #e2e8f0', fontWeight: 700 }}>
+                    <span>Total Pembayaran:</span>
+                    <span style={{ color: '#2e384d' }}>Rp{billing ? Number(billing.nominal).toLocaleString('id-ID') : '0'}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Footer */}
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #f0f4f5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexShrink: 0 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: 14, color: '#9ca3af' }}>lock</span>
-              <span style={{ fontSize: '0.7rem', color: '#9ca3af', fontWeight: 600 }}>Transaksi diproses aman oleh Duitku Payment Gateway</span>
+            {/* Countdown Notice Bar */}
+            <div style={{ background: '#eaedf2', padding: '6px 16px', textAlign: 'center', fontSize: '11px', color: '#556271', fontWeight: 500, flexShrink: 0 }}>
+              Choose within {formatCountdown(countdown)}
+            </div>
+
+            {/* Methods Body List */}
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {duitkuChannelsLoading && (
+                <div style={{ padding: '18px', textAlign: 'center', color: '#7f8fa4', fontSize: '12px' }}>
+                  <span className="material-symbols-outlined snap-spin" style={{ fontSize: 18, color: '#0070ba', display: 'block', margin: '0 auto 6px' }}>progress_activity</span>
+                  Memuat saluran pembayaran...
+                </div>
+              )}
+
+              {/* 1. Recommended payment method */}
+              <div style={{ fontSize: '12px', color: '#7f8fa4', padding: '12px 20px 4px 20px', fontWeight: 400 }}>
+                Recommended payment method
+              </div>
+              <div
+                className="snap-item-row"
+                onClick={function () { if (!duitkuLoading) handleDuitkuPay('LQ'); }}
+                style={{ opacity: duitkuLoading && duitkuSelectedChannel !== 'LQ' ? 0.6 : 1 }}
+              >
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>GoPay QRIS</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <span className="snap-badge-gopay">● gopay</span>
+                    <span className="snap-badge-gopay-later">gopay <span style={{ color: '#fedd00', fontSize: 8 }}>later</span></span>
+                    <span className="snap-badge-qris">QRIS</span>
+                  </div>
+                </div>
+                {duitkuLoading && duitkuSelectedChannel === 'LQ' ? (
+                  <span className="material-symbols-outlined snap-spin" style={{ fontSize: 18, color: '#0070ba' }}>progress_activity</span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                )}
+              </div>
+
+              {/* 2. All payment methods */}
+              <div style={{ fontSize: '12px', color: '#7f8fa4', padding: '14px 20px 4px 20px', borderTop: '1px solid #f0f0f0', fontWeight: 400 }}>
+                All payment methods
+              </div>
+
+              {/* Item: GoPay QRIS */}
+              <div
+                className="snap-item-row"
+                onClick={function () { if (!duitkuLoading) handleDuitkuPay('LQ'); }}
+                style={{ opacity: duitkuLoading && duitkuSelectedChannel !== 'LQ' ? 0.6 : 1 }}
+              >
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>GoPay QRIS</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <span className="snap-badge-gopay">● gopay</span>
+                    <span className="snap-badge-gopay-later">gopay <span style={{ color: '#fedd00', fontSize: 8 }}>later</span></span>
+                    <span className="snap-badge-qris">QRIS</span>
+                  </div>
+                </div>
+                {duitkuLoading && duitkuSelectedChannel === 'LQ' ? (
+                  <span className="material-symbols-outlined snap-spin" style={{ fontSize: 18, color: '#0070ba' }}>progress_activity</span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                )}
+              </div>
+
+              {/* Item: Virtual account (Expandable Accordion) */}
+              <div>
+                <div
+                  className="snap-item-row"
+                  onClick={function () { setDuitkuExpandedCategory(duitkuExpandedCategory === 'va' ? null : 'va'); }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>Virtual account</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <span className="snap-badge-bank" style={{ color: '#005baa' }}>BCA</span>
+                      <span className="snap-badge-bank" style={{ color: '#003d79' }}>mandiri</span>
+                      <span className="snap-badge-bank" style={{ color: '#e0592a' }}>BNI</span>
+                      <span className="snap-badge-bank" style={{ color: '#00529c' }}>BANK BRI</span>
+                      <span className="snap-badge-bank" style={{ color: '#00a39d' }}>PermataBank</span>
+                      <span style={{ fontSize: '11px', color: '#7f8fa4', fontWeight: 600 }}>+6</span>
+                    </div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: duitkuExpandedCategory === 'va' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                {/* Sub-list of Virtual Accounts */}
+                {duitkuExpandedCategory === 'va' && (
+                  <div>
+                    {[
+                      { code: 'BC', name: 'BCA Virtual Account', logoColor: '#005baa', logoText: 'BCA', img: 'https://images.duitku.com/hotlink-ok/BCA.SVG' },
+                      { code: 'M2', name: 'Mandiri Bill / VA', logoColor: '#003d79', logoText: 'mandiri', img: 'https://images.duitku.com/hotlink-ok/MV.PNG' },
+                      { code: 'BR', name: 'BRI Virtual Account', logoColor: '#00529c', logoText: 'BANK BRI', img: 'https://images.duitku.com/hotlink-ok/BR.PNG' },
+                      { code: 'I1', name: 'BNI Virtual Account', logoColor: '#e0592a', logoText: 'BNI', img: 'https://images.duitku.com/hotlink-ok/I1.PNG' },
+                      { code: 'BV', name: 'BSI (Bank Syariah) VA', logoColor: '#00a39d', logoText: 'BSI', img: 'https://images.duitku.com/hotlink-ok/BSI.PNG' },
+                      { code: 'NC', name: 'BNC (Neo Commerce) VA', logoColor: '#ffba00', logoText: 'BNC', img: 'https://images.duitku.com/hotlink-ok/NC.PNG' },
+                      { code: 'AG', name: 'Bank Artha Graha VA', logoColor: '#1e3a8a', logoText: 'AG', img: 'https://images.duitku.com/hotlink-ok/AG.PNG' },
+                      { code: 'SP', name: 'Bank Sahabat Sampoerna VA', logoColor: '#b91c1c', logoText: 'Sampoerna', img: 'https://images.duitku.com/hotlink-ok/SP.PNG' }
+                    ].map(function (bank) {
+                      var isProcessing = duitkuLoading && duitkuSelectedChannel === bank.code;
+                      return (
+                        <div
+                          key={bank.code}
+                          className="snap-sub-item"
+                          onClick={function () { if (!duitkuLoading) handleDuitkuPay(bank.code); }}
+                          style={{ opacity: duitkuLoading && !isProcessing ? 0.6 : 1 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 44, height: 26, background: '#ffffff', borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px' }}>
+                              {bank.img ? (
+                                <img src={bank.img} alt={bank.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={function (e) { e.currentTarget.style.display = 'none'; }} />
+                              ) : (
+                                <span style={{ fontWeight: 800, fontSize: 10, color: bank.logoColor }}>{bank.logoText}</span>
+                              )}
+                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#2e384d' }}>{bank.name}</span>
+                          </div>
+                          {isProcessing ? (
+                            <span className="material-symbols-outlined snap-spin" style={{ fontSize: 16, color: '#0070ba' }}>progress_activity</span>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Item: Card Payment */}
+              <div
+                className="snap-item-row"
+                onClick={function () { if (!duitkuLoading) handleDuitkuPay('VC'); }}
+                style={{ opacity: duitkuLoading && duitkuSelectedChannel !== 'VC' ? 0.6 : 1 }}
+              >
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>Card Payment</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span style={{ color: '#1a1f71', fontWeight: 900, fontStyle: 'italic', fontSize: 11 }}>VISA</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#eb001b', display: 'inline-block' }}></span>
+                      <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#f79e1b', display: 'inline-block', marginLeft: -4 }}></span>
+                    </span>
+                    <span style={{ color: '#007940', fontWeight: 800, fontSize: 10 }}>JCB</span>
+                    <span style={{ background: '#006fcf', color: 'white', fontWeight: 800, fontSize: 8, padding: '1px 3px', borderRadius: 2 }}>AMEX</span>
+                  </div>
+                </div>
+                {duitkuLoading && duitkuSelectedChannel === 'VC' ? (
+                  <span className="material-symbols-outlined snap-spin" style={{ fontSize: 18, color: '#0070ba' }}>progress_activity</span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                )}
+              </div>
+
+              {/* Item: ShopeePay QRIS */}
+              <div
+                className="snap-item-row"
+                onClick={function () { if (!duitkuLoading) handleDuitkuPay('SP'); }}
+                style={{ opacity: duitkuLoading && duitkuSelectedChannel !== 'SP' ? 0.6 : 1 }}
+              >
+                <div>
+                  <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>ShopeePay QRIS</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                    <span style={{ color: '#ee4d2d', fontWeight: 800, fontSize: 10 }}>ShopeePay</span>
+                    <span style={{ color: '#ee4d2d', fontWeight: 700, fontSize: 9 }}>SPayLater</span>
+                    <span className="snap-badge-qris">QRIS</span>
+                  </div>
+                </div>
+                {duitkuLoading && duitkuSelectedChannel === 'SP' ? (
+                  <span className="material-symbols-outlined snap-spin" style={{ fontSize: 18, color: '#0070ba' }}>progress_activity</span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                )}
+              </div>
+
+              {/* Item: Convenience Store (Minimarket) */}
+              <div>
+                <div
+                  className="snap-item-row"
+                  onClick={function () { setDuitkuExpandedCategory(duitkuExpandedCategory === 'cstore' ? null : 'cstore'); }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>Convenience Store</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <span style={{ color: '#00479b', fontWeight: 800, fontSize: 10 }}>Indomaret</span>
+                      <span style={{ color: '#e11e26', fontWeight: 800, fontSize: 10 }}>Alfamart / Retail</span>
+                    </div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: duitkuExpandedCategory === 'cstore' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                {duitkuExpandedCategory === 'cstore' && (
+                  <div>
+                    {[
+                      { code: 'IR', name: 'Indomaret', img: 'https://images.duitku.com/hotlink-ok/IR.PNG' },
+                      { code: 'FT', name: 'Retail / Alfamart / Pos', img: 'https://images.duitku.com/hotlink-ok/RETAIL.PNG' }
+                    ].map(function (store) {
+                      var isProcessing = duitkuLoading && duitkuSelectedChannel === store.code;
+                      return (
+                        <div
+                          key={store.code}
+                          className="snap-sub-item"
+                          onClick={function () { if (!duitkuLoading) handleDuitkuPay(store.code); }}
+                          style={{ opacity: duitkuLoading && !isProcessing ? 0.6 : 1 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 44, height: 26, background: '#ffffff', borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px' }}>
+                              <img src={store.img} alt={store.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={function (e) { e.currentTarget.style.display = 'none'; }} />
+                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#2e384d' }}>{store.name}</span>
+                          </div>
+                          {isProcessing ? (
+                            <span className="material-symbols-outlined snap-spin" style={{ fontSize: 16, color: '#0070ba' }}>progress_activity</span>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Item: Other E-Wallets */}
+              <div>
+                <div
+                  className="snap-item-row"
+                  onClick={function () { setDuitkuExpandedCategory(duitkuExpandedCategory === 'ewallet' ? null : 'ewallet'); }}
+                >
+                  <div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#2e384d' }}>Other E-Wallets</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                      <span style={{ color: '#4c2a86', fontWeight: 800, fontSize: 10 }}>OVO</span>
+                      <span style={{ color: '#118eea', fontWeight: 800, fontSize: 10 }}>DANA</span>
+                      <span style={{ color: '#e31b23', fontWeight: 800, fontSize: 10 }}>LinkAja</span>
+                    </div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: duitkuExpandedCategory === 'ewallet' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                {duitkuExpandedCategory === 'ewallet' && (
+                  <div>
+                    {[
+                      { code: 'OV', name: 'OVO E-Wallet', img: 'https://images.duitku.com/hotlink-ok/OV.PNG' },
+                      { code: 'DA', name: 'DANA E-Wallet', img: 'https://images.duitku.com/hotlink-ok/DA.PNG' },
+                      { code: 'LA', name: 'LinkAja E-Wallet', img: 'https://images.duitku.com/hotlink-ok/LINKAJA.PNG' }
+                    ].map(function (ew) {
+                      var isProcessing = duitkuLoading && duitkuSelectedChannel === ew.code;
+                      return (
+                        <div
+                          key={ew.code}
+                          className="snap-sub-item"
+                          onClick={function () { if (!duitkuLoading) handleDuitkuPay(ew.code); }}
+                          style={{ opacity: duitkuLoading && !isProcessing ? 0.6 : 1 }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 44, height: 26, background: '#ffffff', borderRadius: 4, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px 4px' }}>
+                              <img src={ew.img} alt={ew.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} onError={function (e) { e.currentTarget.style.display = 'none'; }} />
+                            </div>
+                            <span style={{ fontSize: '13px', fontWeight: 500, color: '#2e384d' }}>{ew.name}</span>
+                          </div>
+                          {isProcessing ? (
+                            <span className="material-symbols-outlined snap-spin" style={{ fontSize: 16, color: '#0070ba' }}>progress_activity</span>
+                          ) : (
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7f8fa4" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
