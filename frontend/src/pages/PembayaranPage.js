@@ -7,6 +7,7 @@ import { API_BASE_URL } from '../config';
 
 function PembayaranPage({ socket }) {
   var [pendingPayments, setPendingPayments] = useState([]);
+  var [approvedManualPayments, setApprovedManualPayments] = useState([]);
   var [loading, setLoading] = useState(true);
   var location = useLocation();
   var queryType = new URLSearchParams(location.search).get('type') || 'manual'; // 'manual', 'duitku', or 'midtrans'
@@ -59,6 +60,19 @@ function PembayaranPage({ socket }) {
       var response = await axios.get(url, { headers: headers });
       if (response.data.success) {
         setPendingPayments(response.data.data);
+      }
+
+      // Jika halaman manual, ambil juga riwayat pembayaran manual yang sudah disetujui
+      if (queryType === 'manual') {
+        try {
+          var resp2 = await axios.get(`${API_BASE_URL}/api/pembayaran/manual`, { headers: headers });
+          if (resp2.data.success) setApprovedManualPayments(resp2.data.data);
+        } catch (err2) {
+          console.error('Gagal mengambil riwayat pembayaran manual:', err2);
+        }
+      } else {
+        // kosongkan state riwayat jika bukan halaman manual
+        setApprovedManualPayments([]);
       }
     } catch (err) {
       console.error('Gagal mengambil pengajuan pembayaran:', err);
@@ -127,13 +141,13 @@ function PembayaranPage({ socket }) {
       'NC': { label: 'Virtual Account', bank: 'Bank Neo Commerce (BNC VA)' },
       'AG': { label: 'Virtual Account', bank: 'Bank Artha Graha (Virtual Account)' },
       'SP': { label: 'Virtual Account / E-Wallet', bank: 'Bank Sahabat Sampoerna / ShopeePay' },
-      
+
       // Duitku QRIS & E-Wallets
       'LQ': { label: 'QRIS Real-Time', bank: 'QRIS (Semua Bank & E-Wallet)' },
       'OV': { label: 'E-Wallet', bank: 'OVO' },
       'DA': { label: 'E-Wallet', bank: 'DANA' },
       'LA': { label: 'E-Wallet', bank: 'LinkAja' },
-      
+
       // Duitku Retail & Card
       'IR': { label: 'Minimarket', bank: 'Indomaret' },
       'FT': { label: 'Gerai Retail', bank: 'Retail / Alfamart / Pos Indonesia' },
@@ -236,7 +250,7 @@ function PembayaranPage({ socket }) {
           className={'btn ' + (queryType === 'manual' ? 'btn-primary' : 'btn-secondary')}
           style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
         >
-          <TemplateIcon name="camera" size={16} /> Transfer Manual (Pending)
+          <TemplateIcon name="camera" size={16} /> Transfer Manual
         </Link>
         <Link
           to="/dashboard/pembayaran?type=duitku"
@@ -254,96 +268,133 @@ function PembayaranPage({ socket }) {
         </Link>
       </div>
 
+      {/* Riwayat Pembayaran Manual (Disetujui) */}
+      {queryType === 'manual' && (
+        <div className="table-container animate-fadeIn" style={{ marginTop: '28px' }}>
+          <div className="table-header">
+            <h3>
+              <TemplateIcon name="history" size={18} style={{ marginRight: '8px' }} />
+              Riwayat Pembayaran Manual (Disetujui) ({approvedManualPayments.length})
+            </h3>
+          </div>
+
+          {loading ? (
+            <div style={{ padding: '40px' }}>
+              <div className="skeleton skeleton-text lg" style={{ width: '30%' }} />
+            </div>
+          ) : approvedManualPayments.length === 0 ? (
+            <div className="table-empty">
+              <div className="table-empty-icon"><TemplateIcon name="check" size={28} /></div>
+              <p>Belum ada pembayaran manual yang disetujui.</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Nama Pelanggan</th>
+                  <th>No HP</th>
+                  <th>Periode Tagihan</th>
+                  <th>Nominal</th>
+                  <th>Waktu Verifikasi</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {approvedManualPayments.map(function (item, idx) {
+                  return (
+                    <tr key={item.id_pembayaran}>
+                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 600 }}>{item.nama}</td>
+                      <td>{item.no_hp}</td>
+                      <td><code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '5px' }}>{item.periode}</code></td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary-light)' }}>Rp {Number(item.nominal).toLocaleString('id-ID')}</td>
+                      <td>{formatTanggal(item.verified_at || item.tanggal_upload)}</td>
+                      <td>
+                        <button className="btn btn-secondary btn-sm" onClick={function () { setZoomScale(1); setViewBukti(Object.assign({}, item, { isApprovedManual: true })); }}>
+                          <TemplateIcon name="camera" size={14} style={{ marginRight: '6px' }} /> Lihat Bukti
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+
+
       {successMsg && (
         <div className="status-badge hijau animate-fadeIn" style={{ width: '100%', padding: '12px 16px', borderRadius: '5px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
           <TemplateIcon name="bell" size={16} style={{ marginRight: '8px' }} /> {successMsg}
         </div>
       )}
 
-      <div className="table-container animate-fadeIn">
-        <div className="table-header">
-          <h3>
-            <TemplateIcon name="document" size={18} style={{ marginRight: '8px' }} />
-            {queryType !== 'manual' ? `Transaksi Sukses (${pendingPayments.length})` : `Antrean Verifikasi (${pendingPayments.length})`}
-          </h3>
-        </div>
+      {queryType !== 'manual' && (
+        <div className="table-container animate-fadeIn">
+          <div className="table-header">
+            <h3>
+              <TemplateIcon name="document" size={18} style={{ marginRight: '8px' }} />
+              Transaksi Sukses ({pendingPayments.length})
+            </h3>
+          </div>
 
-        {loading ? (
-          <div style={{ padding: '40px' }}>
-            <div className="skeleton skeleton-text lg" style={{ width: '30%' }} />
-            <div className="skeleton skeleton-text" style={{ width: '80%', marginTop: '16px' }} />
-            <div className="skeleton skeleton-text" style={{ width: '60%', marginTop: '12px' }} />
-          </div>
-        ) : pendingPayments.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon"><TemplateIcon name="check" size={28} /></div>
-            <p>{getEmptyMessage()}</p>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>No</th>
-                <th>Nama Pelanggan</th>
-                <th>No HP</th>
-                <th>Periode Tagihan</th>
-                <th>Nominal</th>
-                <th>{queryType !== 'manual' ? 'Waktu Transaksi' : 'Waktu Upload'}</th>
-                <th>{queryType !== 'manual' ? 'Detail' : 'Bukti Transfer'}</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingPayments.map(function (item, idx) {
-                var isOnlinePayment = item.bukti_file && (item.bukti_file.includes('Midtrans') || item.bukti_file.includes('Duitku'));
-                return (
-                  <tr key={item.id_pembayaran}>
-                    <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{item.nama}</td>
-                    <td>{item.no_hp}</td>
-                    <td><code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '5px' }}>{item.periode}</code></td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary-light)' }}>
-                      Rp {Number(item.nominal).toLocaleString('id-ID')}
-                    </td>
-                    <td>{formatTanggal(item.tanggal_upload)}</td>
-                    <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={function () { setZoomScale(1); setViewBukti(item); }}
-                      >
-                        <TemplateIcon name={isOnlinePayment ? 'document' : 'camera'} size={14} style={{ marginRight: '6px' }} />
-                        {isOnlinePayment ? 'Detail Transaksi' : 'Lihat Bukti'}
-                      </button>
-                    </td>
-                    <td>
-                      {isOnlinePayment ? (
-                        <span className="status-badge hijau">Lunas (Otomatis)</span>
-                      ) : (
-                        <div className="table-actions">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={function () { handleApprove(item.id_pembayaran); }}
-                            disabled={actionLoading}
-                          >
-                            <TemplateIcon name="check" size={14} style={{ marginRight: '6px' }} /> Terima
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm"
-                            onClick={function () { setRejectTarget(item); }}
-                            disabled={actionLoading}
-                          >
-                            <TemplateIcon name="close" size={14} style={{ marginRight: '6px' }} /> Tolak
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+          {loading ? (
+            <div style={{ padding: '40px' }}>
+              <div className="skeleton skeleton-text lg" style={{ width: '30%' }} />
+              <div className="skeleton skeleton-text" style={{ width: '80%', marginTop: '16px' }} />
+              <div className="skeleton skeleton-text" style={{ width: '60%', marginTop: '12px' }} />
+            </div>
+          ) : pendingPayments.length === 0 ? (
+            <div className="table-empty">
+              <div className="table-empty-icon"><TemplateIcon name="check" size={28} /></div>
+              <p>{getEmptyMessage()}</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Nama Pelanggan</th>
+                  <th>No HP</th>
+                  <th>Periode Tagihan</th>
+                  <th>Nominal</th>
+                  <th>Waktu Transaksi</th>
+                  <th>Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingPayments.map(function (item, idx) {
+                  var isOnlinePayment = item.bukti_file && (item.bukti_file.includes('Midtrans') || item.bukti_file.includes('Duitku'));
+                  return (
+                    <tr key={item.id_pembayaran}>
+                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ fontWeight: 600 }}>{item.nama}</td>
+                      <td>{item.no_hp}</td>
+                      <td><code style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: '5px' }}>{item.periode}</code></td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary-light)' }}>
+                        Rp {Number(item.nominal).toLocaleString('id-ID')}
+                      </td>
+                      <td>{formatTanggal(item.tanggal_upload)}</td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={function () { setZoomScale(1); setViewBukti(item); }}
+                        >
+                          <TemplateIcon name={isOnlinePayment ? 'document' : 'camera'} size={14} style={{ marginRight: '6px' }} />
+                          {isOnlinePayment ? 'Detail Transaksi' : 'Lihat Bukti'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
 
       {/* Modal View Bukti Transfer / Detail Transaksi */}
       {viewBukti && (
@@ -359,6 +410,8 @@ function PembayaranPage({ socket }) {
           }
           footer={
             viewBukti.bukti_file && (viewBukti.bukti_file.includes('Midtrans') || viewBukti.bukti_file.includes('Duitku')) ? (
+              <button className="btn btn-primary btn-sm" onClick={function () { setViewBukti(null); }}>Tutup</button>
+            ) : viewBukti.isApprovedManual ? (
               <button className="btn btn-primary btn-sm" onClick={function () { setViewBukti(null); }}>Tutup</button>
             ) : (
               <>

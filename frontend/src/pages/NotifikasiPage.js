@@ -11,6 +11,8 @@ function NotifikasiPage({ socket }) {
   var [searchQuery, setSearchQuery] = useState('');
   var [filterStatus, setFilterStatus] = useState('all'); // 'all', 'unread', 'read', 'manual', 'midtrans'
   var [viewMidtransDetail, setViewMidtransDetail] = useState(null);
+  var [viewNotif, setViewNotif] = useState(null); // for manual payment modal
+  var [actionLoading, setActionLoading] = useState(false);
   var navigate = useNavigate();
   var location = useLocation();
 
@@ -67,13 +69,13 @@ function NotifikasiPage({ socket }) {
       'NC': { label: 'Virtual Account', bank: 'Bank Neo Commerce (BNC VA)' },
       'AG': { label: 'Virtual Account', bank: 'Bank Artha Graha (Virtual Account)' },
       'SP': { label: 'Virtual Account / E-Wallet', bank: 'Bank Sahabat Sampoerna / ShopeePay' },
-      
+
       // Duitku QRIS & E-Wallets
       'LQ': { label: 'QRIS Real-Time', bank: 'QRIS (Semua Bank & E-Wallet)' },
       'OV': { label: 'E-Wallet', bank: 'OVO' },
       'DA': { label: 'E-Wallet', bank: 'DANA' },
       'LA': { label: 'E-Wallet', bank: 'LinkAja' },
-      
+
       // Duitku Retail & Card
       'IR': { label: 'Minimarket', bank: 'Indomaret' },
       'FT': { label: 'Gerai Retail', bank: 'Retail / Alfamart / Pos Indonesia' },
@@ -136,8 +138,8 @@ function NotifikasiPage({ socket }) {
       var response = await axios.put(`${API_BASE_URL}/api/notifikasi/${notif.id_notifikasi}/read`, {}, { headers: headers });
       if (response.data.success) {
         // Update local state directly for speed
-        setNotifs(function(prev) {
-          return prev.map(function(n) {
+        setNotifs(function (prev) {
+          return prev.map(function (n) {
             if (n.id_notifikasi === notif.id_notifikasi) {
               return { ...n, status_baca: 1 };
             }
@@ -156,8 +158,8 @@ function NotifikasiPage({ socket }) {
     try {
       var response = await axios.put(`${API_BASE_URL}/api/notifikasi/read-all`, {}, { headers: headers });
       if (response.data.success) {
-        setNotifs(function(prev) {
-          return prev.map(function(n) {
+        setNotifs(function (prev) {
+          return prev.map(function (n) {
             return { ...n, status_baca: 1 };
           });
         });
@@ -174,7 +176,7 @@ function NotifikasiPage({ socket }) {
     if (searchQuery) {
       var q = searchQuery.toLowerCase();
       matchesSearch = (n.nama_pelanggan && n.nama_pelanggan.toLowerCase().includes(q)) ||
-                      (n.periode && n.periode.toLowerCase().includes(q));
+        (n.periode && n.periode.toLowerCase().includes(q));
     }
 
     if (!matchesSearch) return false;
@@ -213,7 +215,7 @@ function NotifikasiPage({ socket }) {
           <h1>Notifikasi Pembayaran</h1>
           <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans.</p>
         </div>
-        <button className="btn btn-primary" onClick={handleMarkAllRead} disabled={notifs.filter(function(n) { return n.status_baca === 0; }).length === 0} style={{
+        <button className="btn btn-primary" onClick={handleMarkAllRead} disabled={notifs.filter(function (n) { return n.status_baca === 0; }).length === 0} style={{
           background: 'var(--md-primary-fixed)',
           color: 'var(--md-on-primary-fixed-variant)',
           fontWeight: '700'
@@ -263,7 +265,7 @@ function NotifikasiPage({ socket }) {
       <div className="table-container animate-fadeIn">
         <div className="table-header">
           <h3>
-            <TemplateIcon name="bell" size={18} style={{ marginRight: '8px' }} /> 
+            <TemplateIcon name="bell" size={18} style={{ marginRight: '8px' }} />
             Notifikasi Masuk ({filteredNotifs.length})
           </h3>
           <div className="table-header-actions">
@@ -306,6 +308,7 @@ function NotifikasiPage({ socket }) {
                 <th>Periode</th>
                 <th>Nominal</th>
                 <th>Waktu Masuk</th>
+                {filterStatus !== 'midtrans' && <th>Detail</th>}
                 <th>Status</th>
                 <th style={{ textAlign: 'right' }}>Aksi</th>
               </tr>
@@ -315,9 +318,9 @@ function NotifikasiPage({ socket }) {
                 var isUnread = notif.status_baca === 0;
                 var isMidtrans = notif.bukti_file && notif.bukti_file.includes('Midtrans');
                 return (
-                  <tr 
+                  <tr
                     key={notif.id_notifikasi}
-                    style={{ 
+                    style={{
                       background: isUnread ? 'rgba(0, 104, 118, 0.02)' : 'transparent',
                       fontWeight: isUnread ? '600' : 'normal'
                     }}
@@ -332,9 +335,19 @@ function NotifikasiPage({ socket }) {
                     <td>{notif.periode}</td>
                     <td>Rp {Number(notif.nominal).toLocaleString('id-ID')}</td>
                     <td>{formatTanggal(notif.tanggal)}</td>
+                    {filterStatus !== 'midtrans' && (
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={function () { handleMarkRead(notif); setViewNotif(notif); }}
+                        >
+                          <TemplateIcon name="camera" size={14} style={{ marginRight: '6px' }} /> Lihat Bukti
+                        </button>
+                      </td>
+                    )}
                     <td>
-                      <span 
-                        onClick={function() { handleMarkRead(notif); }}
+                      <span
+                        onClick={function () { handleMarkRead(notif); }}
                         style={{
                           cursor: isUnread ? 'pointer' : 'default',
                           display: 'inline-flex',
@@ -363,7 +376,8 @@ function NotifikasiPage({ socket }) {
                             if (isMidtrans) {
                               setViewMidtransDetail(notif);
                             } else {
-                              navigate('/dashboard/pembayaran');
+                              // open manual payment modal for verify
+                              setViewNotif(notif);
                             }
                           }}
                         >
@@ -378,6 +392,66 @@ function NotifikasiPage({ socket }) {
           </table>
         )}
       </div>
+
+      {/* Modal for manual payment proof and verification */}
+      {viewNotif && (
+        <Modal
+          isOpen={viewNotif !== null}
+          onClose={function () { setViewNotif(null); }}
+          title={<><TemplateIcon name="camera" size={16} style={{ marginRight: '8px' }} /> Bukti Transfer - {viewNotif.nama_pelanggan || 'Pelanggan'}</>}
+          footer={(
+            <>
+              <button className="btn btn-secondary" onClick={function () { setViewNotif(null); }}>Batal</button>
+              <button
+                className="btn btn-danger"
+                onClick={async function () {
+                  var alasan = window.prompt('Alasan penolakan (wajib):');
+                  if (!alasan) return alert('Alasan penolakan diperlukan.');
+                  setActionLoading(true);
+                  try {
+                    var resp = await axios.post(`${API_BASE_URL}/api/pembayaran/${viewNotif.id_pembayaran}/reject`, { alasan_tolak: alasan }, { headers: headers });
+                    alert(resp.data.message || 'Pembayaran ditolak.');
+                    setViewNotif(null);
+                    fetchNotifications();
+                  } catch (err) {
+                    alert('Gagal menolak pembayaran: ' + (err.response?.data?.message || err.message));
+                  } finally { setActionLoading(false); }
+                }}
+                disabled={actionLoading}
+              >
+                Tolak
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={async function () {
+                  if (!window.confirm('Setujui pembayaran ini?')) return;
+                  setActionLoading(true);
+                  try {
+                    var r = await axios.post(`${API_BASE_URL}/api/pembayaran/${viewNotif.id_pembayaran}/approve`, {}, { headers: headers });
+                    alert(r.data.message || 'Pembayaran disetujui.');
+                    setViewNotif(null);
+                    fetchNotifications();
+                  } catch (err) {
+                    alert('Gagal menyetujui pembayaran: ' + (err.response?.data?.message || err.message));
+                  } finally { setActionLoading(false); }
+                }}
+                disabled={actionLoading}
+              >
+                Terima Pembayaran
+              </button>
+            </>
+          )}
+        >
+          <div style={{ textAlign: 'center', padding: '10px' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '8px' }}>
+              Tagihan: <strong>Rp {Number(viewNotif.nominal).toLocaleString('id-ID')}</strong> | Periode: <strong>{viewNotif.periode}</strong>
+            </p>
+            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+              <img src={`${API_BASE_URL}${viewNotif.bukti_file}`} alt="Bukti Transfer Pelanggan" style={{ maxWidth: '100%', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Modal for viewing Midtrans Transaction Details */}
       {viewMidtransDetail && (

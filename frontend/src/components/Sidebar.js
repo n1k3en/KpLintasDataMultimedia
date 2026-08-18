@@ -19,33 +19,33 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
 
-  var fetchBadges = function() {
+  var fetchBadges = function () {
     if (!token) return;
-    
+
     // Fetch pending payment verifications count
     axios.get(API_BASE_URL + '/api/pembayaran/pending', { headers: headers })
-      .then(function(res) {
+      .then(function (res) {
         if (res.data.success) {
           setPendingCount(res.data.data.length);
         }
       })
-      .catch(function(err) { console.error('Sidebar error pending payment:', err); });
+      .catch(function (err) { console.error('Sidebar error pending payment:', err); });
   };
 
-  useEffect(function() {
+  useEffect(function () {
     fetchBadges();
   }, [location.pathname]);
 
   // WebSocket real-time updates for counts
-  useEffect(function() {
+  useEffect(function () {
     if (socket) {
-      socket.on('pembayaran_masuk', function() {
+      socket.on('pembayaran_masuk', function () {
         fetchBadges();
       });
-      socket.on('pelanggan_updated', function() {
+      socket.on('pelanggan_updated', function () {
         fetchBadges();
       });
-      return function() {
+      return function () {
         socket.off('pembayaran_masuk');
         socket.off('pelanggan_updated');
       };
@@ -59,13 +59,12 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
         { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
         { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
         { path: '/dashboard/tagihan', label: 'Tagihan', icon: 'receipt_long' },
-        { 
-          path: '/dashboard/pembayaran', 
-          label: 'Pembayaran', 
-          icon: 'payments', 
-          badge: pendingCount,
+        {
+          path: '/dashboard/pembayaran',
+          label: 'Pembayaran',
+          icon: 'payments',
           subItems: [
-            { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual', badge: pendingCount },
+            { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual' },
             { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
             { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
           ]
@@ -125,8 +124,8 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
           padding: '20px 24px 10px 24px',
           borderBottom: '1px solid var(--border-color)'
         }}>
-          <div 
-            onClick={function() { setProfileOpen(!profileOpen); }}
+          <div
+            onClick={function () { setProfileOpen(!profileOpen); }}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -137,11 +136,11 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
               transition: 'background 0.2s ease',
               background: profileOpen ? 'var(--bg-secondary)' : 'transparent'
             }}
-            onMouseEnter={function(e) {
-              if(!profileOpen) e.currentTarget.style.background = 'var(--bg-primary)';
+            onMouseEnter={function (e) {
+              if (!profileOpen) e.currentTarget.style.background = 'var(--bg-primary)';
             }}
-            onMouseLeave={function(e) {
-              if(!profileOpen) e.currentTarget.style.background = 'transparent';
+            onMouseLeave={function (e) {
+              if (!profileOpen) e.currentTarget.style.background = 'transparent';
             }}
           >
             <div className="sidebar-avatar" style={{
@@ -200,14 +199,14 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                 borderRadius: '6px',
                 textDecoration: 'none'
               }}
-              onClick={function() { window.location.href = '/dashboard/profil'; }}
-              onMouseEnter={function(e) { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-              onMouseLeave={function(e) { e.currentTarget.style.background = 'transparent'; }}
+                onClick={function () { window.location.href = '/dashboard/profil'; }}
+                onMouseEnter={function (e) { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                onMouseLeave={function (e) { e.currentTarget.style.background = 'transparent'; }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>person</span>
                 Profil Saya
               </div>
-              <div 
+              <div
                 onClick={onLogout}
                 style={{
                   padding: '8px 12px',
@@ -220,8 +219,8 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                   cursor: 'pointer',
                   borderRadius: '6px'
                 }}
-                onMouseEnter={function(e) { e.currentTarget.style.background = 'var(--status-merah-bg)'; }}
-                onMouseLeave={function(e) { e.currentTarget.style.background = 'transparent'; }}
+                onMouseEnter={function (e) { e.currentTarget.style.background = 'var(--status-merah-bg)'; }}
+                onMouseLeave={function (e) { e.currentTarget.style.background = 'transparent'; }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>logout</span>
                 Keluar (Logout)
@@ -252,7 +251,7 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
               {section.items.map(function (item, iIdx) {
                 var isCleanActive = location.pathname === item.path.split('?')[0];
                 var isActive = isCleanActive || (item.path.includes('action') && location.pathname + location.search === item.path);
-                
+
                 var hasSubItems = item.subItems && item.subItems.length > 0;
                 var isExpanded = hasSubItems && (pembayaranOpen || location.pathname.startsWith('/dashboard/pembayaran'));
 
@@ -262,10 +261,10 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                     <div key={iIdx} style={{ display: 'flex', flexDirection: 'column' }}>
                       <Link
                         to={item.path}
-                        onClick={function(e) { 
+                        onClick={function (e) {
                           if (!collapsed) {
-                            e.preventDefault(); 
-                            setPembayaranOpen(!pembayaranOpen); 
+                            e.preventDefault();
+                            setPembayaranOpen(!pembayaranOpen);
                           }
                         }}
                         className={'sidebar-link' + (isCleanActive ? ' active' : '')}
@@ -285,22 +284,22 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                           transition: 'all 0.25s ease',
                           position: 'relative'
                         }}
-                        onMouseEnter={function(e) {
+                        onMouseEnter={function (e) {
                           if (!isCleanActive) {
                             e.currentTarget.style.background = 'var(--bg-secondary)';
                             e.currentTarget.style.color = 'var(--text-primary)';
                           }
                         }}
-                        onMouseLeave={function(e) {
+                        onMouseLeave={function (e) {
                           if (!isCleanActive) {
                             e.currentTarget.style.background = 'transparent';
                             e.currentTarget.style.color = 'var(--text-secondary)';
                           }
                         }}
                       >
-                        <span 
-                          className="material-symbols-outlined" 
-                          style={{ 
+                        <span
+                          className="material-symbols-outlined"
+                          style={{
                             fontSize: '1.3rem',
                             color: isCleanActive ? 'var(--primary)' : 'var(--text-muted)'
                           }}
@@ -308,7 +307,7 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                           {item.icon}
                         </span>
                         {!collapsed && <span>{item.label}</span>}
-                        
+
                         {!collapsed && item.badge > 0 && (
                           <span style={{
                             marginLeft: 'auto',
@@ -353,10 +352,10 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                           borderLeft: '1px solid var(--border-color)',
                           marginLeft: '20px'
                         }}>
-                          {item.subItems.map(function(subItem, sIdx) {
-                            var isSubActive = location.pathname + location.search === subItem.path || 
+                          {item.subItems.map(function (subItem, sIdx) {
+                            var isSubActive = location.pathname + location.search === subItem.path ||
                               (subItem.path === '/dashboard/pembayaran?type=manual' && (location.pathname + location.search === '/dashboard/pembayaran' || location.pathname + location.search === '/dashboard/pembayaran?type=manual'));
-                            
+
                             return (
                               <Link
                                 key={sIdx}
@@ -374,13 +373,13 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                                   transition: 'all 0.2s ease',
                                   position: 'relative'
                                 }}
-                                onMouseEnter={function(e) {
+                                onMouseEnter={function (e) {
                                   if (!isSubActive) {
                                     e.currentTarget.style.background = 'var(--bg-secondary)';
                                     e.currentTarget.style.color = 'var(--text-primary)';
                                   }
                                 }}
-                                onMouseLeave={function(e) {
+                                onMouseLeave={function (e) {
                                   if (!isSubActive) {
                                     e.currentTarget.style.background = 'transparent';
                                     e.currentTarget.style.color = 'var(--text-secondary)';
@@ -433,22 +432,22 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                       transition: 'all 0.25s ease',
                       position: 'relative'
                     }}
-                    onMouseEnter={function(e) {
+                    onMouseEnter={function (e) {
                       if (!isActive) {
                         e.currentTarget.style.background = 'var(--bg-secondary)';
                         e.currentTarget.style.color = 'var(--text-primary)';
                       }
                     }}
-                    onMouseLeave={function(e) {
+                    onMouseLeave={function (e) {
                       if (!isActive) {
                         e.currentTarget.style.background = 'transparent';
                         e.currentTarget.style.color = 'var(--text-secondary)';
                       }
                     }}
                   >
-                    <span 
-                      className="material-symbols-outlined" 
-                      style={{ 
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
                         fontSize: '1.3rem',
                         color: isActive ? 'var(--primary)' : 'var(--text-muted)'
                       }}
@@ -456,7 +455,7 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
                       {item.icon}
                     </span>
                     {!collapsed && <span>{item.label}</span>}
-                    
+
                     {/* Badge */}
                     {item.badge > 0 && (
                       <span style={{

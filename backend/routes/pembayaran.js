@@ -13,8 +13,8 @@ var verifyToken = require('../middleware/auth');
 router.use(verifyToken);
 
 /* GET /api/pembayaran/pending - Get all pending payment approvals */
-router.get('/pending', function(req, res) {
-  Pembayaran.getAllPending(function(err, results) {
+router.get('/pending', function (req, res) {
+  Pembayaran.getAllPending(function (err, results) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
@@ -23,7 +23,7 @@ router.get('/pending', function(req, res) {
 });
 
 /* GET /api/pembayaran/midtrans - Get all Midtrans online payments */
-router.get('/midtrans', function(req, res) {
+router.get('/midtrans', function (req, res) {
   var db = require('../config/db');
   var sql = `
     SELECT 
@@ -38,7 +38,7 @@ router.get('/midtrans', function(req, res) {
     WHERE pem.bukti_file LIKE 'Midtrans%'
     ORDER BY pem.tanggal_upload DESC
   `;
-  db.query(sql, function(err, results) {
+  db.query(sql, function (err, results) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
@@ -47,7 +47,7 @@ router.get('/midtrans', function(req, res) {
 });
 
 /* GET /api/pembayaran/duitku - Get all Duitku online payments */
-router.get('/duitku', function(req, res) {
+router.get('/duitku', function (req, res) {
   var db = require('../config/db');
   var sql = `
     SELECT 
@@ -62,7 +62,17 @@ router.get('/duitku', function(req, res) {
     WHERE pem.bukti_file LIKE 'Duitku%'
     ORDER BY pem.tanggal_upload DESC
   `;
-  db.query(sql, function(err, results) {
+  db.query(sql, function (err, results) {
+    if (err) {
+      return res.status(500).json({ success: false, message: 'Database error', error: err.message });
+    }
+    res.json({ success: true, data: results });
+  });
+});
+
+/* GET /api/pembayaran/manual - Get all approved manual-transfer payments */
+router.get('/manual', function (req, res) {
+  Pembayaran.getAllApprovedManual(function (err, results) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
@@ -71,11 +81,11 @@ router.get('/duitku', function(req, res) {
 });
 
 /* POST /api/pembayaran/:id/approve - Approve payment proof */
-router.post('/:id/approve', function(req, res) {
+router.post('/:id/approve', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId; // extracted from verifyToken middleware
 
-  Pembayaran.getById(id_pembayaran, function(err, payment) {
+  Pembayaran.getById(id_pembayaran, function (err, payment) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error' });
     }
@@ -89,7 +99,7 @@ router.post('/:id/approve', function(req, res) {
       status: 'diterima',
       alasan_tolak: null,
       id_admin: id_admin
-    }, function(verifyErr, result) {
+    }, function (verifyErr, result) {
       if (verifyErr) {
         return res.status(500).json({ success: false, message: 'Gagal memverifikasi pembayaran.' });
       }
@@ -99,7 +109,7 @@ router.post('/:id/approve', function(req, res) {
       }
 
       // 2. Set tagihan status to 'lunas'
-      Tagihan.updateStatus(payment.id_tagihan, 'lunas', function(tagihanErr) {
+      Tagihan.updateStatus(payment.id_tagihan, 'lunas', function (tagihanErr) {
         if (tagihanErr) {
           return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
         }
@@ -109,10 +119,10 @@ router.post('/:id/approve', function(req, res) {
         var newDueDate = new Date(currentDueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
         var newDueDateString = newDueDate.toISOString().split('T')[0];
 
-        Pelanggan.update(payment.id_pelanggan, { 
+        Pelanggan.update(payment.id_pelanggan, {
           status_tagihan: 'hijau',
           due_date: newDueDateString
-        }, async function(pelangganErr) {
+        }, async function (pelangganErr) {
           if (pelangganErr) {
             console.error('Gagal memperbarui status pelanggan:', pelangganErr.message);
           }
@@ -148,7 +158,7 @@ router.post('/:id/approve', function(req, res) {
             nominal: nominal,
             status: 'belum_bayar',
             due_date: newDueDateString
-          }, async function(nextBillErr) {
+          }, async function (nextBillErr) {
             if (nextBillErr) {
               console.error('Gagal membuat tagihan periode berikutnya:', nextBillErr.message);
             } else {
@@ -233,7 +243,7 @@ router.post('/:id/approve', function(req, res) {
 });
 
 /* POST /api/pembayaran/:id/reject - Reject payment proof */
-router.post('/:id/reject', function(req, res) {
+router.post('/:id/reject', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId;
   var { alasan_tolak } = req.body;
@@ -242,7 +252,7 @@ router.post('/:id/reject', function(req, res) {
     return res.status(400).json({ success: false, message: 'Alasan penolakan wajib diisi.' });
   }
 
-  Pembayaran.getById(id_pembayaran, function(err, payment) {
+  Pembayaran.getById(id_pembayaran, function (err, payment) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error' });
     }
@@ -256,7 +266,7 @@ router.post('/:id/reject', function(req, res) {
       status: 'ditolak',
       alasan_tolak: alasan_tolak,
       id_admin: id_admin
-    }, function(verifyErr, result) {
+    }, function (verifyErr, result) {
       if (verifyErr) {
         return res.status(500).json({ success: false, message: 'Gagal memperbarui status verifikasi.' });
       }
@@ -273,13 +283,13 @@ router.post('/:id/reject', function(req, res) {
       var targetCustomerStatus = isLate ? 'merah' : 'kuning';
 
       // 2. Revert tagihan status
-      Tagihan.updateStatus(payment.id_tagihan, targetBillStatus, function(tagihanErr) {
+      Tagihan.updateStatus(payment.id_tagihan, targetBillStatus, function (tagihanErr) {
         if (tagihanErr) {
           return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
         }
 
         // 3. Revert pelanggan billing status
-        Pelanggan.update(payment.id_pelanggan, { status_tagihan: targetCustomerStatus }, async function(pelangganErr) {
+        Pelanggan.update(payment.id_pelanggan, { status_tagihan: targetCustomerStatus }, async function (pelangganErr) {
           if (pelangganErr) {
             console.error('Gagal memperbarui status pelanggan:', pelangganErr.message);
           }
@@ -321,7 +331,7 @@ router.post('/:id/reject', function(req, res) {
 });
 
 /* GET /api/pembayaran/invoice/:id_tagihan/pdf - Download or view PDF Invoice */
-router.get('/invoice/:id_tagihan/pdf', function(req, res) {
+router.get('/invoice/:id_tagihan/pdf', function (req, res) {
   var idTagihan = req.params.id_tagihan;
   var db = require('../config/db');
   var sql = `
@@ -330,7 +340,7 @@ router.get('/invoice/:id_tagihan/pdf', function(req, res) {
     JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
     WHERE t.id_tagihan = ?
   `;
-  db.query(sql, [idTagihan], async function(err, results) {
+  db.query(sql, [idTagihan], async function (err, results) {
     if (err || !results || results.length === 0) {
       return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan.' });
     }
