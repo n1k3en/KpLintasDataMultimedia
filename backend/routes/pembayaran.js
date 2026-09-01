@@ -9,6 +9,36 @@ var PdfService = require('../services/pdfService');
 var SocketService = require('../services/socket');
 var verifyToken = require('../middleware/auth');
 
+// Helper: Calculate next month due date with same day-of-month (end-of-month aware)
+// e.g. Jan 31 -> Feb 28, Feb 28 -> Mar 31, Mar 31 -> Apr 30
+// Key logic: if current date is the last day of its month, use last day of next month
+function getNextMonthSameDay(currentDueDate) {
+  var d = new Date(currentDueDate);
+  var originalDay = d.getDate();
+  var currentMonth = d.getMonth();
+  var currentYear = d.getFullYear();
+  
+  var lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  var isLastDayOfMonth = originalDay === lastDayOfCurrentMonth;
+  
+  var nextMonth = currentMonth + 1;
+  var nextYear = currentYear;
+  if (nextMonth > 11) {
+    nextMonth = 0;
+    nextYear += 1;
+  }
+  
+  if (isLastDayOfMonth) {
+    return new Date(nextYear, nextMonth + 1, 0);
+  }
+  
+  var nextDate = new Date(nextYear, nextMonth, originalDay);
+  if (nextDate.getMonth() !== nextMonth) {
+    nextDate = new Date(nextYear, nextMonth + 1, 0);
+  }
+  return nextDate;
+}
+
 // Protect all payment verification routes with Admin JWT
 router.use(verifyToken);
 
@@ -114,10 +144,10 @@ router.post('/:id/approve', function (req, res) {
           return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
         }
 
-        // 3. Update pelanggan: set status to 'hijau' and extend due_date by 30 days
+        // 3. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
         var currentDueDate = new Date(payment.due_date);
-        var newDueDate = new Date(currentDueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-        var newDueDateString = newDueDate.toISOString().split('T')[0];
+        var newDueDate = getNextMonthSameDay(currentDueDate);
+        var newDueDateString = newDueDate._dateString;
 
         Pelanggan.update(payment.id_pelanggan, {
           status_tagihan: 'hijau',

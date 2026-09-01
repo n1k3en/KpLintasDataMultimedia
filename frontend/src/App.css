@@ -655,6 +655,16 @@
   background: var(--status-abu);
 }
 
+.status-badge.biru {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+
+.status-badge.biru::before {
+  background: #0284c7;
+  box-shadow: 0 0 6px #0284c7;
+}
+
 /* ============================================
    Modal
    ============================================ */

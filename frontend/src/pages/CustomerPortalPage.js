@@ -13,6 +13,7 @@ function CustomerPortalPage({ onLogout }) {
   var [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false);
   var [billing, setBilling] = useState(null);
   var [lastPayment, setLastPayment] = useState(null);
+  var [isPaidThisMonth, setIsPaidThisMonth] = useState(false);
   var [profileData, setProfileData] = useState(null);
   var [paymentHistory, setPaymentHistory] = useState([]);
   var [loading, setLoading] = useState(true);
@@ -141,6 +142,7 @@ function CustomerPortalPage({ onLogout }) {
       if (response.data.success) {
         setBilling(response.data.data);
         setLastPayment(response.data.lastPayment);
+        setIsPaidThisMonth(!!response.data.isPaidThisMonth);
       }
     } catch (err) {
       console.error('Gagal mengambil data tagihan:', err);
@@ -197,8 +199,16 @@ function CustomerPortalPage({ onLogout }) {
         var snapToken = response.data.token;
         if (window.snap) {
           window.snap.pay(snapToken, {
-            onSuccess: function (result) {
+            onSuccess: async function (result) {
               setMessage({ type: 'success', text: 'Pembayaran sukses! Layanan internet Anda sedang diaktifkan.' });
+              try {
+                await axios.post(`${API_BASE_URL}/api/customer/portal/midtrans-finish`, {
+                  order_id: result.order_id,
+                  id_tagihan: billing.id_tagihan
+                }, { headers: headers });
+              } catch (finishErr) {
+                console.error('Midtrans finish notification error:', finishErr);
+              }
               fetchBilling();
             },
             onPending: function (result) {
@@ -611,13 +621,38 @@ function CustomerPortalPage({ onLogout }) {
 
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Banner notification if current month is already paid */}
+          {isPaidThisMonth && (
+            <div style={{
+              background: 'linear-gradient(135deg, #e6f4ea 0%, #d4edda 100%)',
+              border: '1px solid #34a853',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px 22px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              boxShadow: '0 4px 14px rgba(52, 168, 83, 0.12)'
+            }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#11722d', flexShrink: 0 }}>check_circle</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.98rem', color: '#11722d', marginBottom: 3 }}>
+                  Tagihan Bulan Ini Sudah Lunas!
+                </div>
+                <div style={{ fontSize: '0.84rem', color: '#165e27', lineHeight: 1.4 }}>
+                  Terima kasih atas pembayaran Anda. Layanan internet Anda aktif. Anda dapat langsung membayar tagihan untuk bulan berikutnya di bawah ini.
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Billing Card */}
           <div className="portal-card">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--md-on-surface-variant)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tagihan Periode {billing.periode}</span>
-              <span className={`status-badge ${billing.status === 'menunggu_verifikasi' ? 'abu' : (billing.status_tagihan === 'kuning' ? 'kuning' : (billing.status_tagihan === 'merah' ? 'merah' : 'hijau'))}`}>
-                {/* {billing.status === 'menunggu_verifikasi' ? 'Verifikasi Pending' : (billing.status_tagihan === 'kuning' ? 'Jatuh Tempo' : (billing.status_tagihan === 'merah' ? 'Menunggak' : 'Belum Bayar'))} */}
-                {billing.status === 'menunggu_verifikasi' ? 'Verifikasi Pending' : (billing.status_tagihan === 'kuning' ? 'Jatuh Tempo' : (billing.status_tagihan === 'merah' ? 'Menunggak' : (billing.status_tagihan === 'hijau' ? 'Lunas' : 'Belum Bayar')))}
+              <span style={{ fontSize: '0.8rem', color: 'var(--md-on-surface-variant)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Tagihan Periode {billing.periode} {isPaidThisMonth ? '(Bulan Berikutnya)' : ''}
+              </span>
+              <span className={`status-badge ${billing.status === 'menunggu_verifikasi' ? 'abu' : (billing.status_tagihan === 'kuning' ? 'kuning' : (billing.status_tagihan === 'merah' ? 'merah' : (isPaidThisMonth ? 'kuning' : 'hijau')))}`}>
+                {billing.status === 'menunggu_verifikasi' ? 'Verifikasi Pending' : (billing.status_tagihan === 'kuning' ? 'Jatuh Tempo' : (billing.status_tagihan === 'merah' ? 'Menunggak' : (isPaidThisMonth ? 'Belum Bayar (Berikutnya)' : 'Belum Bayar')))}
               </span>
             </div>
             <div style={{ fontSize: '2.5rem', fontWeight: 800, margin: '8px 0', color: 'var(--md-primary)', letterSpacing: '-1px' }}>

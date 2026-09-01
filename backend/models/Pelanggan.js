@@ -4,7 +4,15 @@ var Pelanggan = {
   // Ambil semua pelanggan
   getAll: function(callback) {
     var sql = `
-      SELECT p.*, pl.harga, pl.kecepatan 
+      SELECT 
+        p.*, 
+        pl.harga, 
+        pl.kecepatan,
+        COALESCE(
+          (SELECT due_date FROM tagihan WHERE id_pelanggan = p.id_pelanggan AND status != 'lunas' ORDER BY due_date ASC LIMIT 1),
+          (SELECT due_date FROM tagihan WHERE id_pelanggan = p.id_pelanggan ORDER BY due_date DESC LIMIT 1),
+          p.due_date
+        ) AS due_date
       FROM pelanggan p 
       LEFT JOIN paket_layanan pl ON p.paket = pl.nama_paket 
       ORDER BY p.created_at DESC
@@ -18,7 +26,15 @@ var Pelanggan = {
   // Ambil pelanggan berdasarkan ID
   getById: function(id, callback) {
     var sql = `
-      SELECT p.*, pl.harga, pl.kecepatan 
+      SELECT 
+        p.*, 
+        pl.harga, 
+        pl.kecepatan,
+        COALESCE(
+          (SELECT due_date FROM tagihan WHERE id_pelanggan = p.id_pelanggan AND status != 'lunas' ORDER BY due_date ASC LIMIT 1),
+          (SELECT due_date FROM tagihan WHERE id_pelanggan = p.id_pelanggan ORDER BY due_date DESC LIMIT 1),
+          p.due_date
+        ) AS due_date
       FROM pelanggan p 
       LEFT JOIN paket_layanan pl ON p.paket = pl.nama_paket 
       WHERE p.id_pelanggan = ?
