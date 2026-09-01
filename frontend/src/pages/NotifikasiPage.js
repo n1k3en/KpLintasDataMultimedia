@@ -11,7 +11,7 @@ function NotifikasiPage({ socket }) {
   var [searchQuery, setSearchQuery] = useState('');
   var [filterStatus, setFilterStatus] = useState('all'); // 'all', 'unread', 'read', 'manual', 'midtrans'
   var [viewMidtransDetail, setViewMidtransDetail] = useState(null);
-  var [viewNotif, setViewNotif] = useState(null); // for manual payment modal
+  var [viewNotif, setViewNotif] = useState(null);
   var [actionLoading, setActionLoading] = useState(false);
   var navigate = useNavigate();
   var location = useLocation();
@@ -46,14 +46,30 @@ function NotifikasiPage({ socket }) {
         return String(n.id_notifikasi) === notifIdParam;
       });
       if (found) {
-        setViewMidtransDetail(found);
+        var info = getMetodeInfo(found.bukti_file);
+        if (info.isOnline) {
+          setViewMidtransDetail(found);
+        } else {
+          setViewNotif(found);
+        }
         handleMarkRead(found);
       }
     }
   }, [location.search, notifs]);
 
-  function parseMidtransBukti(buktiStr) {
-    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', bank: '-', status: 'Selesai' };
+  function getMetodeInfo(buktiStr) {
+    if (!buktiStr) return { label: 'Manual Transfer', class: 'kuning', isOnline: false, gateway: 'Manual' };
+    if (buktiStr.includes('Duitku')) {
+      return { label: 'Duitku', class: 'biru', isOnline: true, gateway: 'Duitku' };
+    }
+    if (buktiStr.includes('Midtrans')) {
+      return { label: 'Midtrans', class: 'hijau', isOnline: true, gateway: 'Midtrans' };
+    }
+    return { label: 'Manual Transfer', class: 'kuning', isOnline: false, gateway: 'Manual' };
+  }
+
+  function parseOnlineBukti(buktiStr) {
+    if (!buktiStr) return { gateway: 'Online', tipe: 'Online Gateway', bank: '-', status: 'Sukses' };
     var parts = buktiStr.split(' / ');
     var gateway = (parts[0] || 'Online').trim();
     var rawType = (parts[1] || 'automatic').trim();
@@ -182,15 +198,15 @@ function NotifikasiPage({ socket }) {
     if (!matchesSearch) return false;
 
     // Status / Type filter
-    var isOnline = n.bukti_file && (n.bukti_file.includes('Midtrans') || n.bukti_file.includes('Duitku'));
+    var metodeInfo = getMetodeInfo(n.bukti_file);
     if (filterStatus === 'unread') {
       return n.status_baca === 0;
     } else if (filterStatus === 'read') {
       return n.status_baca === 1;
     } else if (filterStatus === 'manual') {
-      return !isOnline;
+      return !metodeInfo.isOnline;
     } else if (filterStatus === 'midtrans') {
-      return isOnline;
+      return metodeInfo.isOnline;
     }
 
     return true;
@@ -213,7 +229,7 @@ function NotifikasiPage({ socket }) {
       <div className="page-header">
         <div>
           <h1>Notifikasi Pembayaran</h1>
-          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Midtrans.</p>
+          <p>Daftar seluruh notifikasi pembayaran masuk dari pelanggan via transfer manual maupun otomatis Duitku & Midtrans.</p>
         </div>
         <button className="btn btn-primary" onClick={handleMarkAllRead} disabled={notifs.filter(function (n) { return n.status_baca === 0; }).length === 0} style={{
           background: 'var(--md-primary-fixed)',
@@ -316,7 +332,7 @@ function NotifikasiPage({ socket }) {
             <tbody>
               {filteredNotifs.map(function (notif, idx) {
                 var isUnread = notif.status_baca === 0;
-                var isMidtrans = notif.bukti_file && notif.bukti_file.includes('Midtrans');
+                var metodeInfo = getMetodeInfo(notif.bukti_file);
                 return (
                   <tr
                     key={notif.id_notifikasi}
@@ -327,8 +343,8 @@ function NotifikasiPage({ socket }) {
                   >
                     <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
                     <td>
-                      <span className={'status-badge ' + (isMidtrans ? 'hijau' : 'kuning')}>
-                        {isMidtrans ? 'Midtrans' : 'Manual Transfer'}
+                      <span className={'status-badge ' + metodeInfo.class}>
+                        {metodeInfo.label}
                       </span>
                     </td>
                     <td>{notif.nama_pelanggan || 'Pelanggan Dihapus'}</td>
@@ -337,12 +353,21 @@ function NotifikasiPage({ socket }) {
                     <td>{formatTanggal(notif.tanggal)}</td>
                     {filterStatus !== 'midtrans' && (
                       <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={function () { handleMarkRead(notif); setViewNotif(notif); }}
-                        >
-                          <TemplateIcon name="camera" size={14} style={{ marginRight: '6px' }} /> Lihat Bukti
-                        </button>
+                        {metodeInfo.isOnline ? (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={function () { handleMarkRead(notif); setViewMidtransDetail(notif); }}
+                          >
+                            <TemplateIcon name="document" size={14} style={{ marginRight: '6px' }} /> Transaksi Online
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={function () { handleMarkRead(notif); setViewNotif(notif); }}
+                          >
+                            <TemplateIcon name="camera" size={14} style={{ marginRight: '6px' }} /> Lihat Bukti
+                          </button>
+                        )}
                       </td>
                     )}
                     <td>
@@ -373,10 +398,9 @@ function NotifikasiPage({ socket }) {
                           className="btn btn-primary btn-sm"
                           onClick={function () {
                             handleMarkRead(notif);
-                            if (isMidtrans) {
+                            if (metodeInfo.isOnline) {
                               setViewMidtransDetail(notif);
                             } else {
-                              // open manual payment modal for verify
                               setViewNotif(notif);
                             }
                           }}
@@ -453,12 +477,12 @@ function NotifikasiPage({ socket }) {
         </Modal>
       )}
 
-      {/* Modal for viewing Midtrans Transaction Details */}
+      {/* Modal for viewing Online Payment (Midtrans / Duitku) Transaction Details */}
       {viewMidtransDetail && (
         <Modal
           isOpen={viewMidtransDetail !== null}
           onClose={function () { setViewMidtransDetail(null); }}
-          title={<><TemplateIcon name="document" size={16} style={{ marginRight: '8px' }} /> Detail Transaksi Midtrans</>}
+          title={<><TemplateIcon name="document" size={16} style={{ marginRight: '8px' }} /> Detail Transaksi {parseOnlineBukti(viewMidtransDetail.bukti_file).gateway}</>}
           footer={
             <button className="btn btn-primary btn-sm" onClick={function () { setViewMidtransDetail(null); }}>Tutup</button>
           }
@@ -482,19 +506,19 @@ function NotifikasiPage({ socket }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Metode Pembayaran</span>
                 <span style={{ fontWeight: '600', fontSize: '0.88rem' }}>
-                  {parseMidtransBukti(viewMidtransDetail.bukti_file).tipe}
+                  {parseOnlineBukti(viewMidtransDetail.bukti_file).tipe}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Bank / Saluran Pembayaran</span>
                 <span style={{ fontWeight: '700', color: 'var(--md-primary, #006876)', fontSize: '0.88rem' }}>
-                  {parseMidtransBukti(viewMidtransDetail.bukti_file).bank}
+                  {parseOnlineBukti(viewMidtransDetail.bukti_file).bank}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Status Transaksi</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>Status Gateway</span>
                 <span className="status-badge hijau" style={{ fontSize: '0.78rem' }}>
-                  {parseMidtransBukti(viewMidtransDetail.bukti_file).status}
+                  {parseOnlineBukti(viewMidtransDetail.bukti_file).status}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>

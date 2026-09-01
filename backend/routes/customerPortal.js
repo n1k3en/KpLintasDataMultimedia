@@ -10,6 +10,44 @@ var verifyCustomerToken = require('../middleware/customerAuth');
 var SocketService = require('../services/socket');
 var ConfigService = require('../services/configService');
 
+// Helper: Calculate next month due date with same day-of-month (end-of-month aware)
+// e.g. Jan 31 -> Feb 28, Feb 28 -> Mar 31, Mar 31 -> Apr 30
+// Key logic: if current date is the last day of its month, use last day of next month
+// Returns { date: Date, dateString: 'YYYY-MM-DD' } to avoid UTC timezone issues
+function getNextMonthSameDay(currentDueDate) {
+  var d = new Date(currentDueDate);
+  var originalDay = d.getDate();
+  var currentMonth = d.getMonth();
+  var currentYear = d.getFullYear();
+  
+  var lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  var isLastDayOfMonth = originalDay === lastDayOfCurrentMonth;
+  
+  var nextMonth = currentMonth + 1;
+  var nextYear = currentYear;
+  if (nextMonth > 11) {
+    nextMonth = 0;
+    nextYear += 1;
+  }
+  
+  var resultDate;
+  if (isLastDayOfMonth) {
+    resultDate = new Date(nextYear, nextMonth + 1, 0);
+  } else {
+    resultDate = new Date(nextYear, nextMonth, originalDay);
+    if (resultDate.getMonth() !== nextMonth) {
+      resultDate = new Date(nextYear, nextMonth + 1, 0);
+    }
+  }
+  
+  // Format as YYYY-MM-DD using local timezone (not UTC) to avoid off-by-one in UTC+7
+  var yy = resultDate.getFullYear();
+  var mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+  var dd = String(resultDate.getDate()).padStart(2, '0');
+  resultDate._dateString = yy + '-' + mm + '-' + dd;
+  return resultDate;
+}
+
 // Duitku Webhook Callback Endpoint (Public - must be BEFORE verifyCustomerToken)
 router.post('/duitku-callback', function (req, res) {
   var notification = req.body || {};
@@ -117,10 +155,10 @@ router.post('/duitku-callback', function (req, res) {
             return res.status(500).json({ success: false, message: 'Failed to update bill status' });
           }
 
-          // 4. Update pelanggan: set status to 'hijau' and extend due_date by 30 days
+          // 4. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
           var currentDueDate = new Date(billing.due_date);
-          var newDueDate = new Date(currentDueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-          var newDueDateString = newDueDate.toISOString().split('T')[0];
+          var newDueDate = getNextMonthSameDay(currentDueDate);
+          var newDueDateString = newDueDate._dateString;
 
           var PelangganModel = require('../models/Pelanggan');
           PelangganModel.update(billing.id_pelanggan, {
@@ -270,7 +308,7 @@ router.post('/midtrans-callback', function (req, res) {
   var gross_amount = notification.gross_amount;
   var signature_key = notification.signature_key;
 
-  var serverKey = process.env.MIDTRANS_SERVER_KEY || '';
+  var serverKey = ConfigService.get('MIDTRANS_SERVER_KEY', process.env.MIDTRANS_SERVER_KEY || '');
 
   // Verify signature_key
   var payload = order_id + status_code + gross_amount + serverKey;
@@ -368,10 +406,10 @@ router.post('/midtrans-callback', function (req, res) {
             return res.status(500).json({ success: false, message: 'Failed to update bill status' });
           }
 
-          // 4. Update pelanggan: set status to 'hijau' and extend due_date by 30 days
+          // 4. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
           var currentDueDate = new Date(billing.due_date);
-          var newDueDate = new Date(currentDueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-          var newDueDateString = newDueDate.toISOString().split('T')[0];
+          var newDueDate = getNextMonthSameDay(currentDueDate);
+          var newDueDateString = newDueDate._dateString;
 
           var PelangganModel = require('../models/Pelanggan');
           PelangganModel.update(billing.id_pelanggan, {
@@ -517,6 +555,172 @@ router.post('/midtrans-callback', function (req, res) {
   }
 });
 
+// POST /api/customer/portal/midtrans-finish - Client-side notification when Snap payment succeeds
+// This handles the case where Midtrans webhook cannot reach localhost during development
+router.post('/midtrans-finish', function (req, res) {
+  var { order_id, id_tagihan } = req.body;
+
+  if (!order_id && !id_tagihan) {
+    return res.status(400).json({ success: false, message: 'order_id atau id_tagihan wajib disertakan.' });
+  }
+
+  // Parse id_tagihan from order_id if not provided
+  var tagihanId = id_tagihan;
+  if (!tagihanId && order_id) {
+    var parts = order_id.split('-');
+    tagihanId = parseInt(parts[1], 10);
+  }
+
+  if (!tagihanId || isNaN(tagihanId)) {
+    return res.status(400).json({ success: false, message: 'Tidak dapat menentukan ID tagihan.' });
+  }
+
+  // Check if this tagihan already has a payment recorded (from webhook)
+  var checkSql = `
+    SELECT pem.id_pembayaran FROM pembayaran pem 
+    WHERE pem.id_tagihan = ? AND pem.status = 'diterima'
+    LIMIT 1
+  `;
+  db.query(checkSql, [tagihanId], function (checkErr, checkResults) {
+    if (checkErr) {
+      return res.status(500).json({ success: false, message: 'Database error' });
+    }
+
+    if (checkResults && checkResults.length > 0) {
+      // Already processed by webhook, just return success
+      return res.json({ success: true, message: 'Pembayaran sudah diproses sebelumnya via webhook.' });
+    }
+
+    // Not yet processed - process the payment now
+    var selectSql = `
+      SELECT t.*, p.nama, p.no_hp, p.email, p.pppoe_username, p.due_date 
+      FROM tagihan t 
+      JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+      WHERE t.id_tagihan = ?
+    `;
+    db.query(selectSql, [tagihanId], function (err, results) {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Database error' });
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan.' });
+      }
+
+      var billing = results[0];
+      if (billing.status === 'lunas') {
+        return res.json({ success: true, message: 'Tagihan sudah lunas.' });
+      }
+
+      // Record the payment
+      var buktiFile = 'Midtrans / snap_finish / settlement';
+      var insertSql = `
+        INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
+        VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
+      `;
+      db.query(insertSql, [tagihanId, buktiFile], function (insertErr, paymentResult) {
+        if (insertErr) {
+          return res.status(500).json({ success: false, message: 'Gagal mencatat pembayaran.' });
+        }
+
+        var id_pembayaran = paymentResult.insertId;
+
+        // Insert notification
+        db.query("INSERT INTO notifikasi (id_pembayaran) VALUES (?)", [id_pembayaran], function () {});
+
+        // Update tagihan to lunas
+        var TagihanModel = require('../models/Tagihan');
+        TagihanModel.updateStatus(tagihanId, 'lunas', function (tagihanErr) {
+          if (tagihanErr) {
+            return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
+          }
+
+          // Update pelanggan due_date to same day next month
+          var currentDueDate = new Date(billing.due_date);
+          var newDueDate = getNextMonthSameDay(currentDueDate);
+          var newDueDateString = newDueDate._dateString;
+
+          var PelangganModel = require('../models/Pelanggan');
+          PelangganModel.update(billing.id_pelanggan, {
+            status_tagihan: 'hijau',
+            due_date: newDueDateString
+          }, async function (pelangganErr) {
+            if (pelangganErr) {
+              console.error('[Midtrans Finish] Failed to update customer:', pelangganErr.message);
+            }
+
+            // Generate next month bill
+            var parts = billing.periode.split('-');
+            var year = parseInt(parts[0], 10);
+            var month = parseInt(parts[1], 10);
+            if (month === 12) { month = 1; year += 1; } else { month += 1; }
+            var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
+
+            var nominal = await new Promise((resolve) => {
+              db.query('SELECT pl.harga FROM pelanggan p JOIN paket_layanan pl ON p.paket = pl.nama_paket WHERE p.id_pelanggan = ?',
+                [billing.id_pelanggan], (err, rows) => { resolve(rows && rows[0] ? rows[0].harga : billing.nominal); });
+            });
+
+            TagihanModel.create({
+              id_pelanggan: billing.id_pelanggan,
+              periode: nextPeriod,
+              nominal: nominal,
+              status: 'belum_bayar',
+              due_date: newDueDateString
+            }, async function (nextBillErr) {
+              if (nextBillErr) {
+                console.error('[Midtrans Finish] Failed to generate next month bill:', nextBillErr.message);
+              }
+
+              // Enable PPPoE
+              if (billing.pppoe_username) {
+                try {
+                  var MikrotikService = require('../services/mikrotik');
+                  await MikrotikService.enableSecret(billing.pppoe_username);
+                } catch (mikrotikErr) {
+                  console.error('[Midtrans Finish] Failed to enable PPPoE:', mikrotikErr.message);
+                }
+              }
+
+              // Send email
+              if (billing.email) {
+                try {
+                  var EmailService = require('../services/emailService');
+                  var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                  var tglBayarStr = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                  var pdfBuffer = null;
+                  try {
+                    var PdfService = require('../services/pdfService');
+                    pdfBuffer = await PdfService.generateInvoicePdf({
+                      id_tagihan: tagihanId, periode: billing.periode, nominal: billing.nominal, status: 'lunas',
+                      due_date: newDueDateString, created_at: new Date(), nama: billing.nama, email: billing.email,
+                      no_hp: billing.no_hp || '-', alamat: billing.alamat || '-', paket: billing.paket || '-'
+                    }, true);
+                  } catch (pdfErr) { console.error('[Midtrans Finish] PDF error:', pdfErr.message); }
+
+                  await EmailService.sendPaymentApprovedEmail(billing.email, {
+                    nama: billing.nama, periode: billing.periode,
+                    nominal: Number(billing.nominal).toLocaleString('id-ID'),
+                    dueDateFormatted: dueDateFormatted, tanggalBayar: tglBayarStr,
+                    metodePembayaran: 'Midtrans Gateway (Snap)'
+                  }, pdfBuffer);
+                } catch (emailErr) { console.error('[Midtrans Finish] Email error:', emailErr.message); }
+              }
+
+              // Broadcast
+              SocketService.broadcast('pelanggan_updated', { id_pelanggan: billing.id_pelanggan, status_tagihan: 'hijau' });
+              SocketService.broadcast('pembayaran_masuk', { id_pembayaran: id_pembayaran, id_tagihan: tagihanId, nama_pelanggan: billing.nama, tanggal_upload: new Date() });
+
+              console.log(`[Midtrans Finish] Tagihan #${tagihanId} berhasil diproses via client-side finish.`);
+              return res.json({ success: true, message: 'Pembayaran Midtrans berhasil diproses!' });
+            });
+          });
+        });
+      });
+    });
+  });
+});
+
 /* GET /api/customer/portal/check-billing - Public check billing status by Phone or PPPoE username */
 router.get('/check-billing', function (req, res) {
   var { query } = req.query; // can be no_hp or pppoe_username
@@ -622,7 +826,7 @@ var upload = multer({
 router.get('/billing', function (req, res) {
   var id_pelanggan = req.customerId;
 
-  function sendBillingResponse(billingData) {
+  function sendBillingResponse(billingData, isPaidThisMonth) {
     var lastPaymentSql = `
       SELECT pem.*, t.periode, t.nominal 
       FROM pembayaran pem 
@@ -639,11 +843,13 @@ router.get('/billing', function (req, res) {
       res.json({
         success: true,
         data: billingData,
-        lastPayment: lastPayment
+        lastPayment: lastPayment,
+        isPaidThisMonth: !!isPaidThisMonth
       });
     });
   }
 
+  // 1. Query for any unpaid / pending tagihan for this customer
   var sql = `
     SELECT t.*, p.nama, p.paket, p.status_tagihan 
     FROM tagihan t 
@@ -658,69 +864,108 @@ router.get('/billing', function (req, res) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
 
-    if (results.length === 0) {
-      // Check if we need to generate the first/missing tagihan for their current due_date
-      var checkCustSql = `
-        SELECT p.*, pl.harga 
-        FROM pelanggan p
-        LEFT JOIN paket_layanan pl ON p.paket = pl.nama_paket
-        WHERE p.id_pelanggan = ?
-      `;
-      db.query(checkCustSql, [id_pelanggan], function (custErr, custResults) {
-        if (custErr || custResults.length === 0) {
-          return sendBillingResponse(null);
-        }
-
-        var customer = custResults[0];
-        if (!customer.due_date || !customer.harga) {
-          return sendBillingResponse(null);
-        }
-
-        // Format due_date to YYYY-MM period
-        var d = new Date(customer.due_date);
-        var year = d.getFullYear();
-        var month = d.getMonth() + 1;
-        var period = year + '-' + (month < 10 ? '0' + month : month);
-
-        // Check if a bill for this period already exists
-        var checkBillSql = 'SELECT * FROM tagihan WHERE id_pelanggan = ? AND periode = ?';
-        db.query(checkBillSql, [id_pelanggan, period], function (billErr, billResults) {
-          if (billErr || billResults.length > 0) {
-            return sendBillingResponse(null);
-          }
-
-          console.log(`[Billing Service] Generating missing bill for customer ${customer.nama} (${period})`);
-          var Tagihan = require('../models/Tagihan');
-          Tagihan.create({
-            id_pelanggan: id_pelanggan,
-            periode: period,
-            nominal: customer.harga,
-            status: 'belum_bayar',
-            due_date: customer.due_date
-          }, function (createBillErr, newBill) {
-            if (createBillErr) {
-              console.error('[Billing Service] Failed to generate bill:', createBillErr.message);
-              return res.status(500).json({ success: false, message: 'Gagal membuat tagihan otomatis', error: createBillErr.message });
-            }
-
-            sendBillingResponse({
-              id_tagihan: newBill.id_tagihan,
-              id_pelanggan: id_pelanggan,
-              periode: period,
-              nominal: customer.harga,
-              status: 'belum_bayar',
-              due_date: customer.due_date,
-              nama: customer.nama,
-              paket: customer.paket,
-              status_tagihan: customer.status_tagihan
-            });
-          });
-        });
+    if (results.length > 0) {
+      // Check if customer has paid any past bills
+      var checkPastPaidSql = "SELECT id_tagihan FROM tagihan WHERE id_pelanggan = ? AND status = 'lunas' LIMIT 1";
+      db.query(checkPastPaidSql, [id_pelanggan], function (pastErr, pastResults) {
+        var isPaidThisMonth = pastResults && pastResults.length > 0;
+        sendBillingResponse(results[0], isPaidThisMonth);
       });
       return;
     }
 
-    sendBillingResponse(results[0]);
+    // 2. If NO unpaid bill exists (all past bills are 'lunas' or no bill exists yet)
+    var checkCustSql = `
+      SELECT p.*, pl.harga 
+      FROM pelanggan p
+      LEFT JOIN paket_layanan pl ON p.paket = pl.nama_paket
+      WHERE p.id_pelanggan = ?
+    `;
+    db.query(checkCustSql, [id_pelanggan], function (custErr, custResults) {
+      if (custErr || custResults.length === 0) {
+        return sendBillingResponse(null, false);
+      }
+
+      var customer = custResults[0];
+      if (!customer.harga) {
+        return sendBillingResponse(null, false);
+      }
+
+      // Find the latest tagihan to determine next period & due date
+      var latestBillSql = 'SELECT * FROM tagihan WHERE id_pelanggan = ? ORDER BY due_date DESC LIMIT 1';
+      db.query(latestBillSql, [id_pelanggan], function (lbErr, lbResults) {
+        var lastBill = (lbResults && lbResults.length > 0) ? lbResults[0] : null;
+        var hasPaidBill = lastBill && lastBill.status === 'lunas';
+
+        var nextPeriod = '';
+        var nextDueDateStr = '';
+
+        if (lastBill && lastBill.periode) {
+          var parts = lastBill.periode.split('-');
+          var year = parseInt(parts[0], 10);
+          var month = parseInt(parts[1], 10);
+          if (month === 12) {
+            month = 1;
+            year += 1;
+          } else {
+            month += 1;
+          }
+          nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
+          var baseDueDate = lastBill.due_date ? new Date(lastBill.due_date) : new Date();
+          var nextDueDate = getNextMonthSameDay(baseDueDate);
+          nextDueDateStr = nextDueDate._dateString;
+        } else {
+          var d = customer.due_date ? new Date(customer.due_date) : new Date();
+          var year = d.getFullYear();
+          var month = d.getMonth() + 1;
+          nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
+          nextDueDateStr = customer.due_date ? new Date(customer.due_date).toISOString().split('T')[0] : d.toISOString().split('T')[0];
+        }
+
+        // Check if nextPeriod tagihan already exists
+        var checkNextBillSql = `
+          SELECT t.*, p.nama, p.paket, p.status_tagihan 
+          FROM tagihan t 
+          JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
+          WHERE t.id_pelanggan = ? AND t.periode = ?
+        `;
+        db.query(checkNextBillSql, [id_pelanggan, nextPeriod], function (nbErr, nbResults) {
+          if (!nbErr && nbResults && nbResults.length > 0) {
+            return sendBillingResponse(nbResults[0], hasPaidBill);
+          }
+
+          // Create tagihan for nextPeriod
+          var TagihanModel = require('../models/Tagihan');
+          TagihanModel.create({
+            id_pelanggan: id_pelanggan,
+            periode: nextPeriod,
+            nominal: customer.harga,
+            status: 'belum_bayar',
+            due_date: nextDueDateStr
+          }, function (createErr, newBill) {
+            if (createErr) {
+              console.error('[Billing Service] Failed to generate next month bill:', createErr.message);
+              return res.status(500).json({ success: false, message: 'Gagal membuat tagihan bulan berikutnya', error: createErr.message });
+            }
+
+            // Sync due_date on pelanggan table as well
+            db.query("UPDATE pelanggan SET due_date = ? WHERE id_pelanggan = ?", [nextDueDateStr, id_pelanggan]);
+
+            sendBillingResponse({
+              id_tagihan: newBill.id_tagihan,
+              id_pelanggan: id_pelanggan,
+              periode: nextPeriod,
+              nominal: customer.harga,
+              status: 'belum_bayar',
+              due_date: nextDueDateStr,
+              nama: customer.nama,
+              paket: customer.paket,
+              status_tagihan: customer.status_tagihan || 'hijau'
+            }, hasPaidBill);
+          });
+        });
+      });
+    });
   });
 });
 
