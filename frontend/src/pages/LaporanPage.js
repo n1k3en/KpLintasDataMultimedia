@@ -138,10 +138,10 @@ function LaporanPage() {
 
   function handleOpenEdit(item) {
     setEditTarget(item);
-    setKategori(item.kategori);
-    setNominal(item.nominal);
-    setTipe(item.tipe);
-    setTanggal(item.tanggal.split('T')[0]);
+    setKategori(item.kategori || '');
+    setNominal(item.nominal || '');
+    setTipe(item.tipe || 'tidak_fix');
+    setTanggal(item.tanggal ? (typeof item.tanggal === 'string' ? item.tanggal.split('T')[0] : new Date(item.tanggal).toISOString().split('T')[0]) : '');
     setKeterangan(item.keterangan || '');
     setShowEditModal(true);
   }
@@ -157,7 +157,8 @@ function LaporanPage() {
 
   async function handleExportExcel() {
     try {
-      var response = await axios.get(`${API_BASE_URL}/api/reports/export-excel?periode=${periode}`, {
+      var selectedYear = (periode && periode.split('-')[0]) || new Date().getFullYear();
+      var response = await axios.get(`${API_BASE_URL}/api/reports/export-excel?year=${selectedYear}&periode=${periode}`, {
         headers: headers,
         responseType: 'blob'
       });
@@ -168,7 +169,7 @@ function LaporanPage() {
       var url = URL.createObjectURL(blob);
       var link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Laporan_Keuangan_ESP_${periode}.xlsx`);
+      link.setAttribute('download', `Laporan_Keuangan_Tahunan_${selectedYear}_(Januari-Desember).xlsx`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

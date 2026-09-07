@@ -4,9 +4,14 @@ import { API_BASE_URL } from '../config';
 import StatRing from '../components/dashboard/StatRing';
 import IncomeSpendCard from '../components/dashboard/IncomeSpendCard';
 import TodayPaymentSummary from '../components/dashboard/TodayPaymentSummary';
+import SuperAdminNocDashboard from '../components/dashboard/SuperAdminNocDashboard';
 import { Link } from 'react-router-dom';
 
-function DashboardPage({ socket }) {
+function DashboardPage({ socket, admin }) {
+  var savedAdminStr = localStorage.getItem('admin');
+  var currentAdmin = admin || (savedAdminStr ? JSON.parse(savedAdminStr) : null);
+  var isSuperAdmin = currentAdmin && currentAdmin.role === 'superadmin';
+
   var [stats, setStats] = useState({
     total_aktif: 0,
     hijau: 0,
@@ -31,6 +36,11 @@ function DashboardPage({ socket }) {
   var headers = { Authorization: 'Bearer ' + token };
 
   var fetchDashboardReports = async function () {
+    if (isSuperAdmin) {
+      setLoadingReports(false);
+      return;
+    }
+
     var today = new Date();
     var currentMonthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
 
@@ -113,7 +123,11 @@ function DashboardPage({ socket }) {
     fetchStats();
     fetchRouterInfo();
     fetchCustomers();
-    fetchDashboardReports();
+    if (!isSuperAdmin) {
+      fetchDashboardReports();
+    } else {
+      setLoadingReports(false);
+    }
 
     if (socket) {
       socket.on('mikrotik_ping', function (pingData) {
@@ -126,7 +140,7 @@ function DashboardPage({ socket }) {
 
       socket.on('pelanggan_updated', function (data) {
         fetchStats();
-        fetchDashboardReports();
+        if (!isSuperAdmin) fetchDashboardReports();
         // Update customer PPPoE status dynamically in state
         setCustomers(function (prev) {
           return prev.map(function (c) {
@@ -143,7 +157,7 @@ function DashboardPage({ socket }) {
       });
 
       socket.on('pembayaran_masuk', function () {
-        fetchDashboardReports();
+        if (!isSuperAdmin) fetchDashboardReports();
       });
     }
 
@@ -268,9 +282,10 @@ function DashboardPage({ socket }) {
 
   var handleExportExcel = async function () {
     var today = new Date();
-    var currentMonthStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+    var currentYear = today.getFullYear();
+    var currentMonthStr = currentYear + '-' + String(today.getMonth() + 1).padStart(2, '0');
     try {
-      var response = await axios.get(API_BASE_URL + '/api/reports/export-excel?periode=' + currentMonthStr, {
+      var response = await axios.get(API_BASE_URL + '/api/reports/export-excel?year=' + currentYear + '&periode=' + currentMonthStr, {
         headers: headers,
         responseType: 'blob'
       });
@@ -281,7 +296,7 @@ function DashboardPage({ socket }) {
       var url = URL.createObjectURL(blob);
       var link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'Laporan_Keuangan_ESP_' + currentMonthStr + '.xlsx');
+      link.setAttribute('download', 'Laporan_Keuangan_Tahunan_' + currentYear + '_(Januari-Desember).xlsx');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -306,6 +321,10 @@ function DashboardPage({ socket }) {
 
   // Ring overdue count
   var overdueCount = stats.merah || 0;
+
+  if (isSuperAdmin) {
+    return <SuperAdminNocDashboard socket={socket} admin={currentAdmin} />;
+  }
 
   return (
     <div style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
@@ -660,7 +679,7 @@ function DashboardPage({ socket }) {
       <div className="dashboard-shell">
 
         {/* Overlapping Stat Cards Row */}
-        <div className="overlapping-grid-cards">
+        <div className="overlapping-grid-cards" style={{ gridTemplateColumns: !isSuperAdmin ? '1fr 1fr' : '1fr' }}>
           {/* Card "Statistik Keseluruhan" (Circular Rings) */}
           <div className="card glass-card animate-fadeIn" style={{
             display: 'flex',
@@ -685,22 +704,26 @@ function DashboardPage({ socket }) {
             </div>
           </div>
 
-          {/* Card "Pemasukan & Pengeluaran" */}
-          <IncomeSpendCard
-            totalIncome={summary.total_pemasukan}
-            totalSpend={summary.total_pengeluaran}
-            dailyData={miniBarData}
-            loading={loadingReports}
-          />
+          {/* Card "Pemasukan & Pengeluaran" (Khusus Admin operasional, bukan Super Admin) */}
+          {!isSuperAdmin && (
+            <IncomeSpendCard
+              totalIncome={summary.total_pemasukan}
+              totalSpend={summary.total_pengeluaran}
+              dailyData={miniBarData}
+              loading={loadingReports}
+            />
+          )}
         </div>
 
-        {/* Today Summary Grid */}
-        <div className="trend-summary-grid">
-          <TodayPaymentSummary
-            value={todayPaymentsSum}
-            loading={loadingReports}
-          />
-        </div>
+        {/* Today Summary Grid (Khusus Admin operasional, bukan Super Admin) */}
+        {!isSuperAdmin && (
+          <div className="trend-summary-grid">
+            <TodayPaymentSummary
+              value={todayPaymentsSum}
+              loading={loadingReports}
+            />
+          </div>
+        )}
 
         {/* Cisco Network Topology Map */}
         <div className="topology-card panel-card animate-fadeIn" style={{ animationDelay: '0.15s' }}>

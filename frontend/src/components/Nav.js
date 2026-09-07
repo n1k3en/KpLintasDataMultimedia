@@ -341,9 +341,10 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
                       ? `Pembayaran otomatis via Midtrans dari ${n.nama_pelanggan} (Periode ${n.periode})`
                       : `Pembayaran baru dari ${n.nama_pelanggan} (Periode ${n.periode})`;
 
+                    var isSuperAdmin = admin && admin.role === 'superadmin';
                     var targetLink = isMidtrans
                       ? `/dashboard/notifikasi?notifId=${n.id_notifikasi}`
-                      : '/dashboard/pembayaran';
+                      : (isSuperAdmin ? '/dashboard/notifikasi' : '/dashboard/pembayaran');
 
                     return (
                       <div
@@ -430,7 +431,7 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
 
         {/* Grid / Menu Icon */}
         <Link
-          to="/dashboard/laporan"
+          to={admin && admin.role === 'admin' ? "/dashboard/laporan" : "/dashboard/kelola-admin"}
           style={{
             color: 'var(--text-secondary)',
             background: 'var(--bg-tertiary)',
@@ -452,7 +453,7 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
             e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
             e.currentTarget.style.color = '#ffffff';
           }}
-          title="Laporan & Ringkasan"
+          title={admin && admin.role === 'admin' ? "Laporan Keuangan" : "Kelola Admin"}
         >
           <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
             apps

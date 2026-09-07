@@ -9,6 +9,7 @@ var db = require('../config/db');
 var verifyCustomerToken = require('../middleware/customerAuth');
 var SocketService = require('../services/socket');
 var ConfigService = require('../services/configService');
+var BillingService = require('../services/billingService');
 
 // Helper: Calculate next month due date with same day-of-month (end-of-month aware)
 // e.g. Jan 31 -> Feb 28, Feb 28 -> Mar 31, Mar 31 -> Apr 30
@@ -100,192 +101,16 @@ router.post('/duitku-callback', function (req, res) {
 
   // ResultCode '00' indicates payment success in Duitku
   if (resultCode === '00') {
-    // 1. Get Tagihan and Customer Info
-    var selectSql = `
-      SELECT t.*, p.nama, p.no_hp, p.email, p.pppoe_username, p.due_date 
-      FROM tagihan t 
-      JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
-      WHERE t.id_tagihan = ?
-    `;
-    db.query(selectSql, [id_tagihan], function (err, results) {
-      if (err) {
-        console.error('[Duitku Callback] Database error:', err.message);
-        return res.status(500).json({ success: false, message: 'Database error' });
-      }
-
-      if (results.length === 0) {
-        console.error('[Duitku Callback] Tagihan not found for ID:', id_tagihan);
-        return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan' });
-      }
-
-      var billing = results[0];
-
-      // If already paid, do nothing
-      if (billing.status === 'lunas') {
-        console.log(`[Duitku Callback] Tagihan #${id_tagihan} is already lunas. Skipping duplicate processing.`);
-        return res.json({ success: true, message: 'Tagihan sudah lunas.' });
-      }
-
-      // 2. Create Pembayaran entry with status 'diterima'
-      var relativePath = 'Duitku / ' + paymentMethod + ' / success';
-      var insertSql = `
-        INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
-        VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
-      `;
-      db.query(insertSql, [id_tagihan, relativePath], function (err, paymentResult) {
-        if (err) {
-          console.error('[Duitku Callback] Failed to insert payment:', err.message);
-          return res.status(500).json({ success: false, message: 'Failed to record payment' });
-        }
-
-        var id_pembayaran = paymentResult.insertId;
-
-        // Insert notification
-        db.query("INSERT INTO notifikasi (id_pembayaran) VALUES (?)", [id_pembayaran], function(notifErr) {
-          if (notifErr) {
-            console.error('[Duitku Callback] Failed to insert notification record:', notifErr.message);
-          }
-        });
-
-        // 3. Update tagihan status to 'lunas'
-        var TagihanModel = require('../models/Tagihan');
-        TagihanModel.updateStatus(id_tagihan, 'lunas', function (tagihanErr) {
-          if (tagihanErr) {
-            console.error('[Duitku Callback] Failed to update tagihan status:', tagihanErr.message);
-            return res.status(500).json({ success: false, message: 'Failed to update bill status' });
-          }
-
-          // 4. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
-          var currentDueDate = new Date(billing.due_date);
-          var newDueDate = getNextMonthSameDay(currentDueDate);
-          var newDueDateString = newDueDate._dateString;
-
-          var PelangganModel = require('../models/Pelanggan');
-          PelangganModel.update(billing.id_pelanggan, {
-            status_tagihan: 'hijau',
-            due_date: newDueDateString
-          }, async function (pelangganErr) {
-            if (pelangganErr) {
-              console.error('[Duitku Callback] Failed to update customer status:', pelangganErr.message);
-            }
-
-            // 5. Generate next month's bill
-            var parts = billing.periode.split('-');
-            var year = parseInt(parts[0], 10);
-            var month = parseInt(parts[1], 10);
-            if (month === 12) {
-              month = 1;
-              year += 1;
-            } else {
-              month += 1;
-            }
-            var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
-
-            var nominal = await new Promise((resolve) => {
-              db.query(`
-                SELECT pl.harga 
-                FROM pelanggan p 
-                JOIN paket_layanan pl ON p.paket = pl.nama_paket 
-                WHERE p.id_pelanggan = ?
-              `, [billing.id_pelanggan], (err, rows) => {
-                resolve(rows && rows[0] ? rows[0].harga : billing.nominal);
-              });
-            });
-
-            TagihanModel.create({
-              id_pelanggan: billing.id_pelanggan,
-              periode: nextPeriod,
-              nominal: nominal,
-              status: 'belum_bayar',
-              due_date: newDueDateString
-            }, async function (nextBillErr) {
-              if (nextBillErr) {
-                console.error('[Duitku Callback] Failed to generate next month bill:', nextBillErr.message);
-              }
-
-              // 6. Enable PPPoE in Mikrotik
-              var pppoeStatus = 'unknown';
-              if (billing.pppoe_username) {
-                try {
-                  var MikrotikService = require('../services/mikrotik');
-                  var mRes = await MikrotikService.enableSecret(billing.pppoe_username);
-                  if (mRes) pppoeStatus = 'active';
-                } catch (mikrotikErr) {
-                  console.error(`[Duitku Callback] Failed to enable PPPoE ${billing.pppoe_username}:`, mikrotikErr.message);
-                }
-              }
-
-              // 7. Send Email confirmation of approval
-              if (billing.email) {
-                try {
-                  var EmailService = require('../services/emailService');
-                  var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  });
-
-                  var tglBayarStr = new Date().toLocaleString('id-ID', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-
-                  var pdfBuffer = null;
-                  try {
-                    var PdfService = require('../services/pdfService');
-                    pdfBuffer = await PdfService.generateInvoicePdf({
-                      id_tagihan: id_tagihan,
-                      periode: billing.periode,
-                      nominal: billing.nominal,
-                      status: 'lunas',
-                      due_date: newDueDateString,
-                      created_at: new Date(),
-                      nama: billing.nama,
-                      email: billing.email,
-                      no_hp: billing.no_hp || '-',
-                      alamat: billing.alamat || '-',
-                      paket: billing.paket || '-'
-                    }, true);
-                  } catch (pdfErr) {
-                    console.error('[Duitku Callback] Failed to generate PDF invoice:', pdfErr.message);
-                  }
-
-                  await EmailService.sendPaymentApprovedEmail(billing.email, {
-                    nama: billing.nama,
-                    periode: billing.periode,
-                    nominal: Number(billing.nominal).toLocaleString('id-ID'),
-                    dueDateFormatted: dueDateFormatted,
-                    tanggalBayar: tglBayarStr,
-                    metodePembayaran: 'Duitku Gateway (' + paymentMethod + ')'
-                  }, pdfBuffer);
-                } catch (emailErr) {
-                  console.error('[Duitku Callback] Failed to send confirmation email:', emailErr.message);
-                }
-              }
-
-              // 8. Broadcast websocket updates
-              SocketService.broadcast('pelanggan_updated', {
-                id_pelanggan: billing.id_pelanggan,
-                status_tagihan: 'hijau',
-                pppoe_status: pppoeStatus
-              });
-
-              SocketService.broadcast('pembayaran_masuk', {
-                id_pembayaran: id_pembayaran,
-                id_tagihan: id_tagihan,
-                nama_pelanggan: billing.nama,
-                tanggal_upload: new Date()
-              });
-
-              console.log(`[Duitku Callback] Tagihan #${id_tagihan} successfully processed and re-activated!`);
-              return res.json({ success: true, message: 'Pembayaran Duitku berhasil diproses!' });
-            });
-          });
-        });
-      });
+    BillingService.settlePayment({
+      id_tagihan: id_tagihan,
+      payment_method: 'Duitku Gateway (' + paymentMethod + ')',
+      bukti_file: 'Duitku / ' + paymentMethod + ' / success'
+    }).then(function (settleResult) {
+      console.log(`[Duitku Callback] Tagihan #${id_tagihan} successfully processed via BillingService!`);
+      return res.json({ success: true, message: 'Pembayaran Duitku berhasil diproses!', data: settleResult.data });
+    }).catch(function (settleErr) {
+      console.error('[Duitku Callback] Gagal memproses pelunasan:', settleErr);
+      return res.status(500).json({ success: false, message: 'Gagal memproses pembayaran: ' + settleErr.message });
     });
   } else {
     console.log(`[Duitku Callback] Acknowledging transaction status: resultCode=${resultCode}`);
@@ -338,215 +163,39 @@ router.post('/midtrans-callback', function (req, res) {
   var isSuccess = transaction_status === 'settlement' || (transaction_status === 'capture' && fraud_status === 'accept');
 
   if (isSuccess) {
-    // 1. Get Tagihan and Customer Info
-    var selectSql = `
-      SELECT t.*, p.nama, p.no_hp, p.email, p.pppoe_username, p.due_date 
-      FROM tagihan t 
-      JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
-      WHERE t.id_tagihan = ?
-    `;
-    db.query(selectSql, [id_tagihan], function (err, results) {
-      if (err) {
-        console.error('[Midtrans Callback] Database error:', err.message);
-        return res.status(500).json({ success: false, message: 'Database error' });
-      }
+    var specificChannel = payment_type;
+    if (req.body && req.body.va_numbers && req.body.va_numbers.length > 0 && req.body.va_numbers[0].bank) {
+      specificChannel = req.body.va_numbers[0].bank.toLowerCase();
+    } else if (req.body && req.body.bank) {
+      specificChannel = req.body.bank.toLowerCase();
+    } else if (req.body && req.body.permata_va_number) {
+      specificChannel = 'permata';
+    } else if (req.body && (req.body.bill_key || payment_type === 'echannel')) {
+      specificChannel = 'echannel';
+    } else if (req.body && req.body.store) {
+      specificChannel = req.body.store.toLowerCase();
+    }
 
-      if (results.length === 0) {
-        console.error('[Midtrans Callback] Tagihan not found for ID:', id_tagihan);
-        return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan' });
-      }
+    var metodeMap = {
+      'bank_transfer': 'Midtrans (Virtual Account ' + specificChannel.toUpperCase() + ')',
+      'qris': 'Midtrans (QRIS)',
+      'credit_card': 'Midtrans (Kartu Kredit)',
+      'gopay': 'Midtrans (GoPay)',
+      'shopeepay': 'Midtrans (ShopeePay)',
+      'cstore': 'Midtrans (Minimarket)'
+    };
+    var metodeLengkap = metodeMap[payment_type] || ('Midtrans (' + specificChannel + ')');
 
-      var billing = results[0];
-
-      // If the bill is already paid, do nothing
-      if (billing.status === 'lunas') {
-        console.log(`[Midtrans Callback] Tagihan #${id_tagihan} is already lunas. Skipping duplicate processing.`);
-        return res.json({ success: true, message: 'Tagihan sudah lunas.' });
-      }
-
-      // Proceed with approval flow
-      // 2. Create Pembayaran entry with status 'diterima'
-      var specificChannel = payment_type;
-      if (req.body && req.body.va_numbers && req.body.va_numbers.length > 0 && req.body.va_numbers[0].bank) {
-        specificChannel = req.body.va_numbers[0].bank.toLowerCase();
-      } else if (req.body && req.body.bank) {
-        specificChannel = req.body.bank.toLowerCase();
-      } else if (req.body && req.body.permata_va_number) {
-        specificChannel = 'permata';
-      } else if (req.body && (req.body.bill_key || payment_type === 'echannel')) {
-        specificChannel = 'echannel';
-      } else if (req.body && req.body.store) {
-        specificChannel = req.body.store.toLowerCase();
-      }
-      var relativePath = 'Midtrans / ' + specificChannel + ' / ' + transaction_status;
-      var insertSql = `
-        INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
-        VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
-      `;
-      db.query(insertSql, [id_tagihan, relativePath], function (err, paymentResult) {
-        if (err) {
-          console.error('[Midtrans Callback] Failed to insert payment:', err.message);
-          return res.status(500).json({ success: false, message: 'Failed to record payment' });
-        }
-
-        var id_pembayaran = paymentResult.insertId;
-
-        // Insert into notifikasi table to track payment notification
-        db.query("INSERT INTO notifikasi (id_pembayaran) VALUES (?)", [id_pembayaran], function(notifErr) {
-          if (notifErr) {
-            console.error('[Midtrans Callback] Failed to insert notification record:', notifErr.message);
-          }
-        });
-
-        // 3. Update tagihan status to 'lunas'
-        var TagihanModel = require('../models/Tagihan');
-        TagihanModel.updateStatus(id_tagihan, 'lunas', function (tagihanErr) {
-          if (tagihanErr) {
-            console.error('[Midtrans Callback] Failed to update tagihan status:', tagihanErr.message);
-            return res.status(500).json({ success: false, message: 'Failed to update bill status' });
-          }
-
-          // 4. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
-          var currentDueDate = new Date(billing.due_date);
-          var newDueDate = getNextMonthSameDay(currentDueDate);
-          var newDueDateString = newDueDate._dateString;
-
-          var PelangganModel = require('../models/Pelanggan');
-          PelangganModel.update(billing.id_pelanggan, {
-            status_tagihan: 'hijau',
-            due_date: newDueDateString
-          }, async function (pelangganErr) {
-            if (pelangganErr) {
-              console.error('[Midtrans Callback] Failed to update customer status:', pelangganErr.message);
-            }
-
-            // 5. Generate next month's bill in tagihan table
-            var parts = billing.periode.split('-');
-            var year = parseInt(parts[0], 10);
-            var month = parseInt(parts[1], 10);
-            if (month === 12) {
-              month = 1;
-              year += 1;
-            } else {
-              month += 1;
-            }
-            var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
-
-            // Get customer package price for accuracy
-            var nominal = await new Promise((resolve) => {
-              db.query(`
-                SELECT pl.harga 
-                FROM pelanggan p 
-                JOIN paket_layanan pl ON p.paket = pl.nama_paket 
-                WHERE p.id_pelanggan = ?
-              `, [billing.id_pelanggan], (err, rows) => {
-                resolve(rows && rows[0] ? rows[0].harga : billing.nominal);
-              });
-            });
-
-            TagihanModel.create({
-              id_pelanggan: billing.id_pelanggan,
-              periode: nextPeriod,
-              nominal: nominal,
-              status: 'belum_bayar',
-              due_date: newDueDateString
-            }, async function (nextBillErr) {
-              if (nextBillErr) {
-                console.error('[Midtrans Callback] Failed to generate next month bill:', nextBillErr.message);
-              }
-
-              // 6. Enable PPPoE in Mikrotik if username is present
-              var pppoeStatus = 'unknown';
-              if (billing.pppoe_username) {
-                try {
-                  var MikrotikService = require('../services/mikrotik');
-                  var mRes = await MikrotikService.enableSecret(billing.pppoe_username);
-                  if (mRes) pppoeStatus = 'active';
-                } catch (mikrotikErr) {
-                  console.error(`[Midtrans Callback] Failed to enable PPPoE ${billing.pppoe_username}:`, mikrotikErr.message);
-                }
-              }
-
-              // 7. Send Email confirmation of approval
-              if (billing.email) {
-                try {
-                  var EmailService = require('../services/emailService');
-                  var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric'
-                  });
-
-                  var tglBayarStr = new Date().toLocaleString('id-ID', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  });
-                  var metodeMap = {
-                    'bank_transfer': 'Midtrans (Virtual Account)',
-                    'qris': 'Midtrans (QRIS)',
-                    'credit_card': 'Midtrans (Kartu Kredit)',
-                    'gopay': 'Midtrans (GoPay)',
-                    'shopeepay': 'Midtrans (ShopeePay)',
-                    'cstore': 'Midtrans (Minimarket)'
-                  };
-                  var metodeLengkap = metodeMap[payment_type] || ('Midtrans (' + payment_type.replace(/_/g, ' ') + ')');
-
-                  var pdfBuffer = null;
-                  try {
-                    var PdfService = require('../services/pdfService');
-                    pdfBuffer = await PdfService.generateInvoicePdf({
-                      id_tagihan: id_tagihan,
-                      periode: billing.periode,
-                      nominal: billing.nominal,
-                      status: 'lunas',
-                      due_date: newDueDateString,
-                      created_at: new Date(),
-                      nama: billing.nama,
-                      email: billing.email,
-                      no_hp: billing.no_hp || '-',
-                      alamat: billing.alamat || '-',
-                      paket: billing.paket || '-'
-                    }, true);
-                  } catch (pdfErr) {
-                    console.error('[Midtrans Callback] Failed to generate PDF invoice:', pdfErr.message);
-                  }
-
-                  await EmailService.sendPaymentApprovedEmail(billing.email, {
-                    nama: billing.nama,
-                    periode: billing.periode,
-                    nominal: Number(billing.nominal).toLocaleString('id-ID'),
-                    dueDateFormatted: dueDateFormatted,
-                    tanggalBayar: tglBayarStr,
-                    metodePembayaran: metodeLengkap
-                  }, pdfBuffer);
-                } catch (emailErr) {
-                  console.error('[Midtrans Callback] Failed to send confirmation email:', emailErr.message);
-                }
-              }
-
-              // 8. Broadcast websocket updates
-              SocketService.broadcast('pelanggan_updated', {
-                id_pelanggan: billing.id_pelanggan,
-                status_tagihan: 'hijau',
-                pppoe_status: pppoeStatus
-              });
-
-              SocketService.broadcast('pembayaran_masuk', {
-                id_pembayaran: id_pembayaran,
-                id_tagihan: id_tagihan,
-                nama_pelanggan: billing.nama,
-                tanggal_upload: new Date()
-              });
-
-              console.log(`[Midtrans Callback] Tagihan #${id_tagihan} successfully processed and re-activated!`);
-              return res.json({ success: true, message: 'Pembayaran berhasil diproses!' });
-            });
-          });
-        });
-      });
+    BillingService.settlePayment({
+      id_tagihan: id_tagihan,
+      payment_method: metodeLengkap,
+      bukti_file: 'Midtrans / ' + specificChannel + ' / ' + transaction_status
+    }).then(function (settleResult) {
+      console.log(`[Midtrans Callback] Tagihan #${id_tagihan} successfully processed via BillingService!`);
+      return res.json({ success: true, message: 'Pembayaran berhasil diproses!', data: settleResult.data });
+    }).catch(function (settleErr) {
+      console.error('[Midtrans Callback] Gagal memproses pelunasan:', settleErr);
+      return res.status(500).json({ success: false, message: 'Gagal memproses pembayaran: ' + settleErr.message });
     });
   } else {
     // For pending/failed/expired transactions, just return success acknowledgment to Midtrans
@@ -557,7 +206,7 @@ router.post('/midtrans-callback', function (req, res) {
 
 // POST /api/customer/portal/midtrans-finish - Client-side notification when Snap payment succeeds
 // This handles the case where Midtrans webhook cannot reach localhost during development
-router.post('/midtrans-finish', function (req, res) {
+router.post('/midtrans-finish', async function (req, res) {
   var { order_id, id_tagihan } = req.body;
 
   if (!order_id && !id_tagihan) {
@@ -575,150 +224,19 @@ router.post('/midtrans-finish', function (req, res) {
     return res.status(400).json({ success: false, message: 'Tidak dapat menentukan ID tagihan.' });
   }
 
-  // Check if this tagihan already has a payment recorded (from webhook)
-  var checkSql = `
-    SELECT pem.id_pembayaran FROM pembayaran pem 
-    WHERE pem.id_tagihan = ? AND pem.status = 'diterima'
-    LIMIT 1
-  `;
-  db.query(checkSql, [tagihanId], function (checkErr, checkResults) {
-    if (checkErr) {
-      return res.status(500).json({ success: false, message: 'Database error' });
-    }
-
-    if (checkResults && checkResults.length > 0) {
-      // Already processed by webhook, just return success
-      return res.json({ success: true, message: 'Pembayaran sudah diproses sebelumnya via webhook.' });
-    }
-
-    // Not yet processed - process the payment now
-    var selectSql = `
-      SELECT t.*, p.nama, p.no_hp, p.email, p.pppoe_username, p.due_date 
-      FROM tagihan t 
-      JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan 
-      WHERE t.id_tagihan = ?
-    `;
-    db.query(selectSql, [tagihanId], function (err, results) {
-      if (err) {
-        return res.status(500).json({ success: false, message: 'Database error' });
-      }
-      if (results.length === 0) {
-        return res.status(404).json({ success: false, message: 'Tagihan tidak ditemukan.' });
-      }
-
-      var billing = results[0];
-      if (billing.status === 'lunas') {
-        return res.json({ success: true, message: 'Tagihan sudah lunas.' });
-      }
-
-      // Record the payment
-      var buktiFile = 'Midtrans / snap_finish / settlement';
-      var insertSql = `
-        INSERT INTO pembayaran (id_tagihan, bukti_file, status, tanggal_upload, verified_at, id_admin) 
-        VALUES (?, ?, 'diterima', NOW(), NOW(), NULL)
-      `;
-      db.query(insertSql, [tagihanId, buktiFile], function (insertErr, paymentResult) {
-        if (insertErr) {
-          return res.status(500).json({ success: false, message: 'Gagal mencatat pembayaran.' });
-        }
-
-        var id_pembayaran = paymentResult.insertId;
-
-        // Insert notification
-        db.query("INSERT INTO notifikasi (id_pembayaran) VALUES (?)", [id_pembayaran], function () {});
-
-        // Update tagihan to lunas
-        var TagihanModel = require('../models/Tagihan');
-        TagihanModel.updateStatus(tagihanId, 'lunas', function (tagihanErr) {
-          if (tagihanErr) {
-            return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
-          }
-
-          // Update pelanggan due_date to same day next month
-          var currentDueDate = new Date(billing.due_date);
-          var newDueDate = getNextMonthSameDay(currentDueDate);
-          var newDueDateString = newDueDate._dateString;
-
-          var PelangganModel = require('../models/Pelanggan');
-          PelangganModel.update(billing.id_pelanggan, {
-            status_tagihan: 'hijau',
-            due_date: newDueDateString
-          }, async function (pelangganErr) {
-            if (pelangganErr) {
-              console.error('[Midtrans Finish] Failed to update customer:', pelangganErr.message);
-            }
-
-            // Generate next month bill
-            var parts = billing.periode.split('-');
-            var year = parseInt(parts[0], 10);
-            var month = parseInt(parts[1], 10);
-            if (month === 12) { month = 1; year += 1; } else { month += 1; }
-            var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
-
-            var nominal = await new Promise((resolve) => {
-              db.query('SELECT pl.harga FROM pelanggan p JOIN paket_layanan pl ON p.paket = pl.nama_paket WHERE p.id_pelanggan = ?',
-                [billing.id_pelanggan], (err, rows) => { resolve(rows && rows[0] ? rows[0].harga : billing.nominal); });
-            });
-
-            TagihanModel.create({
-              id_pelanggan: billing.id_pelanggan,
-              periode: nextPeriod,
-              nominal: nominal,
-              status: 'belum_bayar',
-              due_date: newDueDateString
-            }, async function (nextBillErr) {
-              if (nextBillErr) {
-                console.error('[Midtrans Finish] Failed to generate next month bill:', nextBillErr.message);
-              }
-
-              // Enable PPPoE
-              if (billing.pppoe_username) {
-                try {
-                  var MikrotikService = require('../services/mikrotik');
-                  await MikrotikService.enableSecret(billing.pppoe_username);
-                } catch (mikrotikErr) {
-                  console.error('[Midtrans Finish] Failed to enable PPPoE:', mikrotikErr.message);
-                }
-              }
-
-              // Send email
-              if (billing.email) {
-                try {
-                  var EmailService = require('../services/emailService');
-                  var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-                  var tglBayarStr = new Date().toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
-                  var pdfBuffer = null;
-                  try {
-                    var PdfService = require('../services/pdfService');
-                    pdfBuffer = await PdfService.generateInvoicePdf({
-                      id_tagihan: tagihanId, periode: billing.periode, nominal: billing.nominal, status: 'lunas',
-                      due_date: newDueDateString, created_at: new Date(), nama: billing.nama, email: billing.email,
-                      no_hp: billing.no_hp || '-', alamat: billing.alamat || '-', paket: billing.paket || '-'
-                    }, true);
-                  } catch (pdfErr) { console.error('[Midtrans Finish] PDF error:', pdfErr.message); }
-
-                  await EmailService.sendPaymentApprovedEmail(billing.email, {
-                    nama: billing.nama, periode: billing.periode,
-                    nominal: Number(billing.nominal).toLocaleString('id-ID'),
-                    dueDateFormatted: dueDateFormatted, tanggalBayar: tglBayarStr,
-                    metodePembayaran: 'Midtrans Gateway (Snap)'
-                  }, pdfBuffer);
-                } catch (emailErr) { console.error('[Midtrans Finish] Email error:', emailErr.message); }
-              }
-
-              // Broadcast
-              SocketService.broadcast('pelanggan_updated', { id_pelanggan: billing.id_pelanggan, status_tagihan: 'hijau' });
-              SocketService.broadcast('pembayaran_masuk', { id_pembayaran: id_pembayaran, id_tagihan: tagihanId, nama_pelanggan: billing.nama, tanggal_upload: new Date() });
-
-              console.log(`[Midtrans Finish] Tagihan #${tagihanId} berhasil diproses via client-side finish.`);
-              return res.json({ success: true, message: 'Pembayaran Midtrans berhasil diproses!' });
-            });
-          });
-        });
-      });
+  try {
+    var settleResult = await BillingService.settlePayment({
+      id_tagihan: tagihanId,
+      payment_method: 'Midtrans Gateway (Snap Finish)',
+      bukti_file: 'Midtrans / snap_finish / settlement'
     });
-  });
+
+    console.log(`[Midtrans Finish] Tagihan #${tagihanId} berhasil diproses via BillingService.`);
+    return res.json({ success: true, message: 'Pembayaran Midtrans berhasil diproses!', data: settleResult.data });
+  } catch (settleErr) {
+    console.error('[Midtrans Finish] Error:', settleErr);
+    return res.status(500).json({ success: false, message: 'Gagal mengonfirmasi pembayaran: ' + settleErr.message });
+  }
 });
 
 /* GET /api/customer/portal/check-billing - Public check billing status by Phone or PPPoE username */
@@ -768,10 +286,24 @@ router.get('/check-billing', function (req, res) {
       }).join(' ');
     };
 
+    // Mask email address to protect privacy (e.g. user@gmail.com -> u***r@gmail.com)
+    var maskEmail = function (email) {
+      if (!email) return '';
+      var parts = email.split('@');
+      if (parts.length !== 2) return email;
+      var username = parts[0];
+      var domain = parts[1];
+      if (username.length <= 2) {
+        return username[0] + '*@' + domain;
+      }
+      return username[0] + '*'.repeat(Math.max(1, username.length - 2)) + username[username.length - 1] + '@' + domain;
+    };
+
     var responseData = {
       nama: maskName(record.nama),
       hasActiveBill: !!record.id_tagihan,
-      email: record.email
+      email: record.email,
+      masked_email: maskEmail(record.email)
     };
 
     if (record.id_tagihan) {
@@ -988,7 +520,7 @@ router.post('/pay', function (req, res) {
     }
 
     // Verify that the bill belongs to the logged-in customer
-    var verifySql = 'SELECT * FROM tagihan WHERE id_tagihan = ? AND id_pelanggan = ?';
+    var verifySql = 'SELECT t.*, p.nama FROM tagihan t JOIN pelanggan p ON t.id_pelanggan = p.id_pelanggan WHERE t.id_tagihan = ? AND t.id_pelanggan = ?';
     db.query(verifySql, [id_tagihan, customerId], function (err, results) {
       if (err) {
         return res.status(500).json({ success: false, message: 'Database error' });

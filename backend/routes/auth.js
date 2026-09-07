@@ -61,6 +61,10 @@ router.post('/login', function(req, res) {
       return res.status(401).json({ success: false, message: 'Username atau password salah.' });
     }
 
+    if (admin.status === 'nonaktif') {
+      return res.status(403).json({ success: false, message: 'Akun Anda dinonaktifkan. Silakan hubungi Super Admin.' });
+    }
+
     bcrypt.compare(password, admin.password_hash, function(compareErr, isMatch) {
       if (compareErr) {
         return res.status(500).json({ success: false, message: 'Error saat verifikasi password.' });
@@ -70,8 +74,9 @@ router.post('/login', function(req, res) {
         return res.status(401).json({ success: false, message: 'Username atau password salah.' });
       }
 
+      var userRole = admin.role || 'admin';
       var token = jwt.sign(
-        { id: admin.id_admin, username: admin.username },
+        { id: admin.id_admin, username: admin.username, role: userRole },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -84,7 +89,9 @@ router.post('/login', function(req, res) {
           admin: {
             id: admin.id_admin,
             username: admin.username,
-            nama: admin.nama
+            nama: admin.nama,
+            role: userRole,
+            status: admin.status || 'aktif'
           }
         }
       });

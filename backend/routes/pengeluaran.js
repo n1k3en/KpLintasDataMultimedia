@@ -3,8 +3,9 @@ var router = express.Router();
 var Pengeluaran = require('../models/Pengeluaran');
 var verifyToken = require('../middleware/auth');
 
-// Protect all routes with admin token
+// Protect all routes with JWT authentication (accessible by operational Admin only, not Super Admin)
 router.use(verifyToken);
+router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/pengeluaran - List monthly expenses */
 router.get('/', function(req, res) {

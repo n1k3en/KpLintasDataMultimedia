@@ -194,7 +194,7 @@ function LandingPage({ customer, onLogout }) {
       <nav className="landing-nav">
         <div className="landing-nav-inner">
           <div className="landing-nav-brand">
-            <img src={logoUrl} alt="Logo LDM" className="landing-nav-logo" />
+            <img src={logoUrl || '/logo_ldm.png'} alt="Logo LDM" className="landing-nav-logo" />
             <span className="landing-nav-title">PT. Lintas Data Multimedia</span>
           </div>
           <div className="landing-nav-menu">
@@ -712,7 +712,7 @@ function LandingPage({ customer, onLogout }) {
       <footer className="landing-footer reveal-on-scroll">
         <div className="landing-footer-inner">
           <div className="landing-footer-brand">
-            <img src={logoUrl} alt="Logo LDM" className="landing-footer-logo" />
+            <img src={logoUrl || '/logo_ldm.png'} alt="Logo LDM" className="landing-footer-logo" />
             <p className="landing-footer-desc">PT. Lintas Data Multimedia — Membangun konektivitas masa depan untuk Indonesia yang lebih terintegrasi dan produktif.</p>
             <div className="landing-footer-social">
               <a href="https://www.facebook.com/share/172oaMU4xo/" target="_blank" rel="noopener noreferrer" className="landing-social-link"><span className="material-symbols-outlined" style={{ fontSize: 18 }}>group</span></a>

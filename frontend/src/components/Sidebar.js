@@ -52,23 +52,29 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
     }
   }, [socket]);
 
+  var userRole = (admin && admin.role) || 'admin';
+  var isSuperAdmin = userRole === 'superadmin';
+
   var menuSections = [
     {
       section: 'Utama',
       items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
         { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
-        { path: '/dashboard/tagihan', label: 'Tagihan', icon: 'receipt_long' },
-        {
-          path: '/dashboard/pembayaran',
-          label: 'Pembayaran',
-          icon: 'payments',
-          subItems: [
-            { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual' },
-            { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
-            { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
-          ]
-        }
+        ...(!isSuperAdmin ? [
+          { path: '/dashboard/tagihan', label: 'Tagihan', icon: 'receipt_long' },
+          {
+            path: '/dashboard/pembayaran',
+            label: 'Pembayaran',
+            icon: 'payments',
+            badge: pendingCount,
+            subItems: [
+              { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual' },
+              { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
+              { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
+            ]
+          }
+        ] : [])
       ]
     },
     {
@@ -76,16 +82,19 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
       items: [
         { path: '/dashboard/mikrotik', label: 'Status Jaringan', icon: 'router' },
         { path: '/dashboard/reminder-logs', label: 'Reminder Log', icon: 'mail' },
-        { path: '/dashboard/laporan', label: 'Laporan Keuangan', icon: 'bar_chart' }
+        ...(!isSuperAdmin ? [
+          { path: '/dashboard/laporan', label: 'Laporan Keuangan', icon: 'bar_chart' }
+        ] : [])
       ]
     },
     {
       section: 'Lainnya',
-      items: [
+      items: isSuperAdmin ? [
+        { path: '/dashboard/kelola-admin', label: 'Kelola Admin', icon: 'manage_accounts' },
         { path: '/dashboard/pengaturan', label: 'Pengaturan', icon: 'settings' }
-      ]
+      ] : []
     }
-  ];
+  ].filter(function (sec) { return sec.items && sec.items.length > 0; });
 
   return (
     <aside className={'sidebar ' + (collapsed ? 'collapsed' : '')} style={{

@@ -20,6 +20,8 @@ var pengeluaranRouter = require('./routes/pengeluaran');
 var reportsRouter = require('./routes/reports');
 var notifikasiRouter = require('./routes/notifikasi');
 var pengaturanRouter = require('./routes/pengaturan');
+var tagihanRouter = require('./routes/tagihan');
+var userManagementRouter = require('./routes/userManagement');
 
 // Database Connection
 var db = require('./config/db');
@@ -68,6 +70,8 @@ app.use('/api/pengeluaran', pengeluaranRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/notifikasi', notifikasiRouter);
 app.use('/api/pengaturan', pengaturanRouter);
+app.use('/api/tagihan', tagihanRouter);
+app.use('/api/users', userManagementRouter);
 
 // Start Cron Service
 var fs = require('fs');

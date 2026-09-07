@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import axios from 'axios';
 import { SOCKET_URL } from './config';
@@ -24,8 +24,11 @@ import NotifikasiPage from './pages/NotifikasiPage';
 import PengaturanPage from './pages/PengaturanPage';
 import TagihanPage from './pages/TagihanPage';
 import ProfilPage from './pages/ProfilPage';
+import KelolaAdminPage from './pages/KelolaAdminPage';
 
 function App() {
+  var location = useLocation();
+
   // Admin authentication state
   var [admin, setAdmin] = useState(null);
   var [token, setToken] = useState(null);
@@ -38,40 +41,69 @@ function App() {
   var [socket, setSocket] = useState(null);
   var [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Check URL pathname to determine if it is admin dashboard flow
-  var isAdminRoute = window.location.pathname.startsWith('/dashboard') || window.location.pathname.startsWith('/login');
+  // Check URL pathname to determine if it is admin flow
+  var isAdminRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/admin');
 
   // Load saved sessions
   useEffect(function () {
     var savedToken = localStorage.getItem('token');
     var savedAdmin = localStorage.getItem('admin');
     if (savedToken && savedAdmin) {
-      setToken(savedToken);
-      setAdmin(JSON.parse(savedAdmin));
+      try {
+        setToken(savedToken);
+        setAdmin(JSON.parse(savedAdmin));
+      } catch (e) {}
     }
 
     var savedCustToken = localStorage.getItem('customer_token');
     var savedCustInfo = localStorage.getItem('customer_info');
     if (savedCustToken && savedCustInfo) {
-      var custInfo = JSON.parse(savedCustInfo);
-      var pathParts = window.location.pathname.split('/');
-      var emailInUrl = '';
-      if (pathParts[1] === 'bayar' && pathParts[2]) {
-        emailInUrl = decodeURIComponent(pathParts[2]).trim().toLowerCase();
-      }
+      try {
+        var custInfo = JSON.parse(savedCustInfo);
+        var pathParts = window.location.pathname.split('/');
+        var emailInUrl = '';
+        if (pathParts[1] === 'bayar' && pathParts[2]) {
+          emailInUrl = decodeURIComponent(pathParts[2]).trim().toLowerCase();
+        }
 
-      if (emailInUrl && custInfo.email && custInfo.email.trim().toLowerCase() !== emailInUrl) {
-        console.warn('URL specifies different customer email than active session. Logging out.');
-        localStorage.removeItem('customer_token');
-        localStorage.removeItem('customer_info');
-      } else {
-        setCustomerToken(savedCustToken);
-        setCustomer(custInfo);
-      }
+        if (emailInUrl && custInfo.email && custInfo.email.trim().toLowerCase() !== emailInUrl) {
+          localStorage.removeItem('customer_token');
+          localStorage.removeItem('customer_info');
+        } else {
+          setCustomerToken(savedCustToken);
+          setCustomer(custInfo);
+        }
+      } catch (e) {}
     }
 
     setLoading(false);
   }, []);
+
+  // Admin login / logout
+  function handleLogin(adminData, tokenData) {
+    setAdmin(adminData);
+    setToken(tokenData);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('admin');
+    setAdmin(null);
+    setToken(null);
+  }
+
+  // Customer login / logout
+  function handleCustomerLogin(customerData, tokenData) {
+    setCustomer(customerData);
+    setCustomerToken(tokenData);
+  }
+
+  function handleCustomerLogout() {
+    localStorage.removeItem('customer_token');
+    localStorage.removeItem('customer_info');
+    setCustomer(null);
+    setCustomerToken(null);
+  }
 
   // Axios interceptor to catch expired tokens (401 or 403) and log out automatically
   useEffect(function () {
@@ -80,12 +112,21 @@ function App() {
         return response;
       },
       function (error) {
-        if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-          console.warn('Session expired or invalid. Logging out.');
-          if (isAdminRoute) {
-            handleLogout();
-          } else {
-            handleCustomerLogout();
+        if (error.response) {
+          var isAuthExpired = error.response.status === 401 || 
+            (error.response.status === 403 && error.response.data?.message && (
+              error.response.data.message.includes('expired') || 
+              error.response.data.message.includes('Token tidak valid') ||
+              error.response.data.message.includes('dinonaktifkan')
+            ));
+
+          if (isAuthExpired) {
+            console.warn('Session expired or account disabled. Logging out.');
+            if (isAdminRoute) {
+              handleLogout();
+            } else {
+              handleCustomerLogout();
+            }
           }
         }
         return Promise.reject(error);
@@ -116,32 +157,6 @@ function App() {
     }
   }, [token, isAdminRoute]);
 
-  // Admin login / logout
-  function handleLogin(adminData, tokenData) {
-    setAdmin(adminData);
-    setToken(tokenData);
-  }
-
-  function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('admin');
-    setAdmin(null);
-    setToken(null);
-  }
-
-  // Customer login / logout
-  function handleCustomerLogin(customerData, tokenData) {
-    setCustomer(customerData);
-    setCustomerToken(tokenData);
-  }
-
-  function handleCustomerLogout() {
-    localStorage.removeItem('customer_token');
-    localStorage.removeItem('customer_info');
-    setCustomer(null);
-    setCustomerToken(null);
-  }
-
   if (loading) {
     return (
       <div style={{
@@ -165,11 +180,14 @@ function App() {
     if (!admin || !token) {
       return (
         <Routes>
-          <Route path="/login" element={<LoginPage onLogin={handleLogin} />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="/admin/login" element={<LoginPage onLogin={handleLogin} />} />
+          <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+          <Route path="*" element={<Navigate to="/admin/login" replace />} />
         </Routes>
       );
     }
+
+    var isSuperAdmin = admin && admin.role === 'superadmin';
 
     return (
       <div className={'app-layout' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}>
@@ -178,17 +196,23 @@ function App() {
         <main className="app-main">
           <div className="app-content">
             <Routes>
-              <Route path="/dashboard" element={<DashboardPage socket={socket} />} />
+              <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/admin/login" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardPage socket={socket} admin={admin} />} />
               <Route path="/dashboard/pelanggan" element={<PelangganPage socket={socket} />} />
-              <Route path="/dashboard/tagihan" element={<TagihanPage socket={socket} />} />
+              <Route path="/dashboard/tagihan" element={!isSuperAdmin ? <TagihanPage socket={socket} admin={admin} /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard/paket" element={<PaketPage />} />
               <Route path="/dashboard/mikrotik" element={<MikrotikPage socket={socket} />} />
               <Route path="/dashboard/reminder-logs" element={<ReminderLogPage />} />
-              <Route path="/dashboard/pembayaran" element={<PembayaranPage socket={socket} />} />
-              <Route path="/dashboard/laporan" element={<LaporanPage />} />
               <Route path="/dashboard/notifikasi" element={<NotifikasiPage socket={socket} />} />
-              <Route path="/dashboard/pengaturan" element={<PengaturanPage />} />
               <Route path="/dashboard/profil" element={<ProfilPage />} />
+
+              {/* Modul Finansial & Kasir dikelola khusus Admin operasional (Bukan Super Admin) */}
+              <Route path="/dashboard/laporan" element={!isSuperAdmin ? <LaporanPage /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard/pembayaran" element={!isSuperAdmin ? <PembayaranPage socket={socket} /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard/pengaturan" element={isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard/kelola-admin" element={isSuperAdmin ? <KelolaAdminPage admin={admin} /> : <Navigate to="/dashboard" replace />} />
+
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </div>
@@ -205,30 +229,38 @@ function App() {
       {/* Landing Page — accessible to everyone */}
       <Route path="/" element={<LandingPage customer={customer} onLogout={handleCustomerLogout} />} />
 
-      {/* Customer Login */}
+      {/* Customer Login (Payment Portal Login) */}
       <Route path="/bayar/:userEmail" element={
         customer && customerToken
-          ? <Navigate to="/" replace />
+          ? <Navigate to="/portal" replace />
           : <CustomerLoginPage onLogin={handleCustomerLogin} title="Portal Pembayaran" />
       } />
       <Route path="/bayar" element={
         customer && customerToken
-          ? <Navigate to="/" replace />
+          ? <Navigate to="/portal" replace />
           : <CustomerLoginPage onLogin={handleCustomerLogin} title="Portal Pembayaran" />
       } />
 
-      {/* Customer Login Pelanggan */}
+      {/* Customer Login via /login */}
       <Route path="/login" element={
         customer && customerToken
-          ? <Navigate to="/" replace />
-          : <CustomerLoginPage onLogin={handleCustomerLogin} title="Portal Login" />
+          ? <Navigate to="/portal" replace />
+          : <CustomerLoginPage onLogin={handleCustomerLogin} title="Portal Pelanggan" />
       } />
 
-      {/* Customer Portal — requires login */}
+      {/* Admin Login Route from Public Area */}
+      <Route path="/admin/login" element={
+        admin && token
+          ? <Navigate to="/dashboard" replace />
+          : <LoginPage onLogin={handleLogin} />
+      } />
+      <Route path="/admin" element={<Navigate to={admin && token ? "/dashboard" : "/admin/login"} replace />} />
+
+      {/* Customer Portal — requires customer login */}
       <Route path="/portal" element={
         customer && customerToken
           ? <CustomerPortalPage onLogout={handleCustomerLogout} />
-          : <Navigate to="/bayar" replace />
+          : <Navigate to="/login" replace />
       } />
 
       {/* Fallback: redirect to landing */}

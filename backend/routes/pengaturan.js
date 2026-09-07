@@ -80,8 +80,9 @@ router.get('/logo', function (req, res) {
   });
 });
 
-// Protect POST/DELETE routes with admin JWT
+// Protect POST/DELETE/PUT routes exclusively for Super Admin
 router.use(verifyToken);
+router.use(verifyToken.requireSuperAdmin);
 
 /* POST /api/pengaturan/logo - Upload new company logo */
 router.post('/logo', function (req, res) {

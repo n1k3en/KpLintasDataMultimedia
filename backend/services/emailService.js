@@ -12,9 +12,27 @@ var LOGO_URL = 'https://raw.githubusercontent.com/rassyhvre/KpLintasDataMultimed
 function getTransporter(customAuth) {
   var emailUser = (customAuth && customAuth.user) || ConfigService.get('EMAIL_USER', process.env.EMAIL_USER);
   var emailPass = (customAuth && customAuth.pass) || ConfigService.get('EMAIL_PASS', process.env.EMAIL_PASS);
+  var smtpHost = (customAuth && customAuth.host) || ConfigService.get('SMTP_HOST', process.env.SMTP_HOST);
+  var smtpPort = (customAuth && customAuth.port) || ConfigService.get('SMTP_PORT', process.env.SMTP_PORT);
 
   if (!emailUser || !emailPass) {
     return null;
+  }
+
+  if (smtpHost) {
+    var portNum = parseInt(smtpPort, 10) || 587;
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: portNum,
+      secure: portNum === 465,
+      auth: {
+        user: emailUser,
+        pass: emailPass
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
   }
 
   return nodemailer.createTransport({

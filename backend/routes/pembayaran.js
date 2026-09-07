@@ -9,38 +9,11 @@ var PdfService = require('../services/pdfService');
 var SocketService = require('../services/socket');
 var verifyToken = require('../middleware/auth');
 
-// Helper: Calculate next month due date with same day-of-month (end-of-month aware)
-// e.g. Jan 31 -> Feb 28, Feb 28 -> Mar 31, Mar 31 -> Apr 30
-// Key logic: if current date is the last day of its month, use last day of next month
-function getNextMonthSameDay(currentDueDate) {
-  var d = new Date(currentDueDate);
-  var originalDay = d.getDate();
-  var currentMonth = d.getMonth();
-  var currentYear = d.getFullYear();
-  
-  var lastDayOfCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  var isLastDayOfMonth = originalDay === lastDayOfCurrentMonth;
-  
-  var nextMonth = currentMonth + 1;
-  var nextYear = currentYear;
-  if (nextMonth > 11) {
-    nextMonth = 0;
-    nextYear += 1;
-  }
-  
-  if (isLastDayOfMonth) {
-    return new Date(nextYear, nextMonth + 1, 0);
-  }
-  
-  var nextDate = new Date(nextYear, nextMonth, originalDay);
-  if (nextDate.getMonth() !== nextMonth) {
-    nextDate = new Date(nextYear, nextMonth + 1, 0);
-  }
-  return nextDate;
-}
+var BillingService = require('../services/billingService');
 
-// Protect all payment verification routes with Admin JWT
+// Protect all payment verification routes (accessible by operational Admin only, not Super Admin)
 router.use(verifyToken);
+router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/pembayaran/pending - Get all pending payment approvals */
 router.get('/pending', function (req, res) {
@@ -110,12 +83,12 @@ router.get('/manual', function (req, res) {
   });
 });
 
-/* POST /api/pembayaran/:id/approve - Approve payment proof */
+/* POST /api/pembayaran/:id/approve - Approve payment proof (Admin & Super Admin) */
 router.post('/:id/approve', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId; // extracted from verifyToken middleware
 
-  Pembayaran.getById(id_pembayaran, function (err, payment) {
+  Pembayaran.getById(id_pembayaran, async function (err, payment) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error' });
     }
@@ -124,155 +97,34 @@ router.post('/:id/approve', function (req, res) {
       return res.status(404).json({ success: false, message: 'Data konfirmasi pembayaran tidak ditemukan.' });
     }
 
-    // 1. Set pembayaran status to 'diterima'
-    Pembayaran.verify(id_pembayaran, {
-      status: 'diterima',
-      alasan_tolak: null,
-      id_admin: id_admin
-    }, function (verifyErr, result) {
-      if (verifyErr) {
-        return res.status(500).json({ success: false, message: 'Gagal memverifikasi pembayaran.' });
-      }
+    if (payment.status === 'diterima') {
+      return res.status(400).json({ success: false, message: 'Pembayaran ini sudah diverifikasi sebelumnya.' });
+    }
 
-      if (!result || result.affectedRows === 0) {
-        return res.status(409).json({ success: false, message: 'Pembayaran ini sudah diverifikasi atau ditolak oleh admin lain.' });
-      }
-
-      // 2. Set tagihan status to 'lunas'
-      Tagihan.updateStatus(payment.id_tagihan, 'lunas', function (tagihanErr) {
-        if (tagihanErr) {
-          return res.status(500).json({ success: false, message: 'Gagal memperbarui status tagihan.' });
-        }
-
-        // 3. Update pelanggan: set status to 'hijau' and extend due_date to same day next month
-        var currentDueDate = new Date(payment.due_date);
-        var newDueDate = getNextMonthSameDay(currentDueDate);
-        var newDueDateString = newDueDate._dateString;
-
-        Pelanggan.update(payment.id_pelanggan, {
-          status_tagihan: 'hijau',
-          due_date: newDueDateString
-        }, async function (pelangganErr) {
-          if (pelangganErr) {
-            console.error('Gagal memperbarui status pelanggan:', pelangganErr.message);
-          }
-
-          // 4. Generate next month's bill in tagihan table
-          var parts = payment.periode.split('-');
-          var year = parseInt(parts[0], 10);
-          var month = parseInt(parts[1], 10);
-          if (month === 12) {
-            month = 1;
-            year += 1;
-          } else {
-            month += 1;
-          }
-          var nextPeriod = year + '-' + (month < 10 ? '0' + month : month);
-
-          // Query the customer's current package price to ensure nominal matches their package
-          var db = require('../config/db');
-          var nominal = await new Promise((resolve) => {
-            db.query(`
-              SELECT pl.harga 
-              FROM pelanggan p 
-              JOIN paket_layanan pl ON p.paket = pl.nama_paket 
-              WHERE p.id_pelanggan = ?
-            `, [payment.id_pelanggan], (err, rows) => {
-              resolve(rows && rows[0] ? rows[0].harga : payment.nominal);
-            });
-          });
-
-          Tagihan.create({
-            id_pelanggan: payment.id_pelanggan,
-            periode: nextPeriod,
-            nominal: nominal,
-            status: 'belum_bayar',
-            due_date: newDueDateString
-          }, async function (nextBillErr) {
-            if (nextBillErr) {
-              console.error('Gagal membuat tagihan periode berikutnya:', nextBillErr.message);
-            } else {
-              console.log(`Tagihan periode berikutnya (${nextPeriod}) berhasil dibuat untuk pelanggan ID ${payment.id_pelanggan}`);
-            }
-
-            // 5. Activate PPPoE in Mikrotik if username is present
-            var pppoeStatus = 'unknown';
-            if (payment.pppoe_username) {
-              try {
-                var mRes = await MikrotikService.enableSecret(payment.pppoe_username);
-                if (mRes) pppoeStatus = 'active';
-              } catch (mikrotikErr) {
-                console.error(`Gagal mengaktifkan PPPoE ${payment.pppoe_username} di router:`, mikrotikErr.message);
-              }
-            }
-
-            // 6. Send Email confirmation of approval with Paid Invoice PDF
-            if (payment.email) {
-              var dueDateFormatted = newDueDate.toLocaleDateString('id-ID', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-              });
-
-              var tglBayarStr = new Date(payment.tanggal_upload || new Date()).toLocaleString('id-ID', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-
-              var pdfBuffer = null;
-              try {
-                var custData = await new Promise(resolve => Pelanggan.getById(payment.id_pelanggan, (err, c) => resolve(c || {})));
-                pdfBuffer = await PdfService.generateInvoicePdf({
-                  id_tagihan: payment.id_tagihan,
-                  periode: payment.periode,
-                  nominal: payment.nominal,
-                  status: 'lunas',
-                  due_date: newDueDateString,
-                  created_at: payment.tanggal_upload || new Date(),
-                  nama: payment.nama,
-                  email: payment.email,
-                  no_hp: payment.no_hp || '-',
-                  alamat: custData.alamat || '-',
-                  paket: custData.paket || '-'
-                }, true);
-              } catch (pdfErr) {
-                console.error('[Pembayaran] Gagal membuat PDF invoice lunas:', pdfErr.message);
-              }
-
-              await EmailService.sendPaymentApprovedEmail(payment.email, {
-                nama: payment.nama,
-                periode: payment.periode,
-                nominal: Number(payment.nominal).toLocaleString('id-ID'),
-                dueDateFormatted: dueDateFormatted,
-                tanggalBayar: tglBayarStr,
-                metodePembayaran: 'Manual Transfer Bank'
-              }, pdfBuffer);
-            } else {
-              console.log('[Pembayaran] Pelanggan tidak memiliki email, notifikasi dilewati.');
-            }
-
-            // 7. Broadcast websocket updates to all clients
-            SocketService.broadcast('pelanggan_updated', {
-              id_pelanggan: payment.id_pelanggan,
-              status_tagihan: 'hijau',
-              pppoe_status: pppoeStatus
-            });
-
-            res.json({
-              success: true,
-              message: 'Pembayaran disetujui! Status pelanggan lunas, masa aktif diperpanjang, dan akun internet diaktifkan.'
-            });
-          });
-        });
+    try {
+      var settleResult = await BillingService.settlePayment({
+        id_tagihan: payment.id_tagihan,
+        id_admin: id_admin,
+        id_pembayaran: id_pembayaran,
+        payment_method: 'Manual Transfer Bank'
       });
-    });
+
+      res.json({
+        success: true,
+        message: 'Pembayaran disetujui! Status pelanggan lunas, masa aktif diperpanjang, dan akun internet diaktifkan.',
+        data: settleResult.data
+      });
+    } catch (settleErr) {
+      console.error('[Pembayaran] Gagal menyetujui pembayaran:', settleErr);
+      res.status(500).json({
+        success: false,
+        message: 'Gagal memverifikasi pembayaran: ' + settleErr.message
+      });
+    }
   });
 });
 
-/* POST /api/pembayaran/:id/reject - Reject payment proof */
+/* POST /api/pembayaran/:id/reject - Reject payment proof (Admin & Super Admin) */
 router.post('/:id/reject', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId;

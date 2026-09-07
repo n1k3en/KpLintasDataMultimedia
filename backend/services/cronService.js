@@ -5,6 +5,8 @@ var ReminderLog = require('../models/ReminderLog');
 var EmailService = require('./emailService');
 var PdfService = require('./pdfService');
 var SocketService = require('./socket');
+var MikrotikService = require('./mikrotik');
+var BillingService = require('./billingService');
 
 // Helper to calculate difference in days between two dates
 function getDaysDifference(date1, date2) {
@@ -18,6 +20,9 @@ var CronService = {
   start: function() {
     console.log('Daily Cron Job for billing status & Email reminder initialized.');
     
+    // Pastikan seluruh pelanggan aktif memiliki lembar tagihan berjalan di tabel tagihan
+    BillingService.ensureActiveBills();
+
     // Run evaluation immediately on startup
     this.checkAndSendReminders();
     
@@ -55,15 +60,25 @@ var CronService = {
         if (daysDiff < 0) {
           // Overdue / Late
           newStatus = 'merah';
-          shouldSendReminder = true; // DITAMBAHKAN: Agar Email tetap dikirim setiap hari saat menunggak
+          shouldSendReminder = true; // Email tetap dikirim setiap hari saat menunggak
 
           if (bill.status !== 'terlambat') {
             Tagihan.updateStatus(bill.id_tagihan, 'terlambat', function(err) {
               if (err) console.error('Failed to update bill status to terlambat:', err.message);
             });
           }
+
+          // ISOLIR MIKROTIK OTOMATIS: Matikan secret PPPoE & putus sesi jika menunggak
+          if (bill.pppoe_username) {
+            try {
+              await MikrotikService.disableSecret(bill.pppoe_username);
+              console.log(`[Cron Service] Berhasil mengisolir koneksi MikroTik untuk pelanggan ${bill.nama} (${bill.pppoe_username})`);
+            } catch (mikrotikErr) {
+              console.error(`[Cron Service] Gagal mengisolir MikroTik untuk ${bill.pppoe_username}:`, mikrotikErr.message);
+            }
+          }
         } else if (daysDiff >= 0 && daysDiff <= 3) {
-          // Due in 0 to 3 days (diperbaiki agar hari-H atau 0 hari juga terdeteksi)
+          // Due in 0 to 3 days (hari-H atau 0-3 hari sebelum jatuh tempo)
           newStatus = 'kuning';
           shouldSendReminder = true;
         } else {
@@ -75,15 +90,20 @@ var CronService = {
         if (bill.status_tagihan !== newStatus) {
           const idPelanggan = bill.id_pelanggan;
           const targetStatus = newStatus;
+          const updateData = { status_tagihan: targetStatus };
+          if (targetStatus === 'merah') {
+            updateData.pppoe_status = 'inactive';
+          }
           
-          Pelanggan.update(idPelanggan, { status_tagihan: targetStatus }, function(updateErr) {
+          Pelanggan.update(idPelanggan, updateData, function(updateErr) {
             if (updateErr) {
               console.error(`[Cron Service] Failed to update customer ${idPelanggan} status:`, updateErr.message);
             } else {
               console.log(`[Cron Service] Updated customer ${idPelanggan} billing status to ${targetStatus}`);
               SocketService.broadcast('pelanggan_updated', {
                 id_pelanggan: idPelanggan,
-                status_tagihan: targetStatus
+                status_tagihan: targetStatus,
+                pppoe_status: targetStatus === 'merah' ? 'inactive' : bill.pppoe_status
               });
             }
           });
