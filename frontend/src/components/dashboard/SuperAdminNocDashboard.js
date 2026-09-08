@@ -168,34 +168,23 @@ function SuperAdminNocDashboard({ socket, admin }) {
   var hddPercent = resources ? resources.hdd_percent : 0;
 
   return (
-    <div className="noc-dashboard-container" style={{ fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    <div className="noc-dashboard-container">
       <style>{`
         .noc-dashboard-container {
           display: flex;
           flex-direction: column;
           gap: 24px;
+          color: var(--text-primary);
         }
 
         /* NOC HUD Banner */
         .noc-hud-banner {
-          background: linear-gradient(135deg, #09131f 0%, #0d1b2a 50%, #1b263b 100%);
-          border: 1px solid rgba(0, 229, 255, 0.2);
-          border-radius: 16px;
+          background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+          border: 0;
+          border-radius: var(--radius-xl);
           padding: 24px 28px;
-          color: #f8fafc;
-          box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-          position: relative;
-          overflow: hidden;
-        }
-
-        .noc-hud-banner::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: linear-gradient(90deg, transparent, #00e5ff, #00b4d8, transparent);
+          color: var(--text-inverse);
+          box-shadow: var(--shadow-lg);
         }
 
         .noc-hud-header {
@@ -219,9 +208,9 @@ function SuperAdminNocDashboard({ socket, admin }) {
           gap: 8px;
           padding: 4px 12px;
           border-radius: 20px;
-          background: rgba(16, 185, 129, 0.15);
-          border: 1px solid rgba(16, 185, 129, 0.4);
-          color: #34d399;
+          background: rgba(255, 255, 255, 0.14);
+          border: 0;
+          color: #d1fae5;
           font-size: 0.75rem;
           font-weight: 700;
           letter-spacing: 0.05em;
@@ -233,7 +222,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
           height: 8px;
           border-radius: 50%;
           background: #10b981;
-          box-shadow: 0 0 8px #10b981;
+          box-shadow: 0 0 8px var(--status-hijau);
           animation: pulse-beacon 1.5s infinite;
         }
 
@@ -247,10 +236,10 @@ function SuperAdminNocDashboard({ socket, admin }) {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
           gap: 16px;
-          background: rgba(15, 23, 42, 0.6);
+          background: rgba(255, 255, 255, 0.1);
           padding: 16px 20px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: var(--radius-lg);
+          border: 0;
         }
 
         .hud-metric-item {
@@ -261,7 +250,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
 
         .hud-metric-label {
           font-size: 0.72rem;
-          color: #94a3b8;
+          color: #dbeafe;
           text-transform: uppercase;
           letter-spacing: 0.04em;
           font-weight: 600;
@@ -270,7 +259,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
         .hud-metric-value {
           font-size: 0.95rem;
           font-weight: 700;
-          color: #f1f5f9;
+          color: var(--text-inverse);
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
 
@@ -282,17 +271,17 @@ function SuperAdminNocDashboard({ socket, admin }) {
         }
 
         .noc-card {
-          background: #0f172a;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 14px;
+          background: var(--bg-card);
+          border: 0;
+          border-radius: var(--radius-xl);
           padding: 20px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-          color: #f8fafc;
+          box-shadow: var(--shadow-sm);
+          color: var(--text-primary);
           transition: transform 0.2s ease, border-color 0.2s ease;
         }
 
         .noc-card:hover {
-          border-color: rgba(0, 229, 255, 0.3);
+          box-shadow: var(--shadow-md);
         }
 
         .noc-card-title {
@@ -301,7 +290,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
           justify-content: space-between;
           font-size: 0.85rem;
           font-weight: 700;
-          color: #94a3b8;
+          color: var(--text-muted);
           margin-bottom: 14px;
           text-transform: uppercase;
           letter-spacing: 0.03em;
@@ -310,8 +299,8 @@ function SuperAdminNocDashboard({ socket, admin }) {
         .noc-progress-bar {
           width: 100%;
           height: 10px;
-          background: #1e293b;
-          border-radius: 6px;
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-sm);
           overflow: hidden;
           margin: 12px 0 8px 0;
           position: relative;
@@ -325,9 +314,9 @@ function SuperAdminNocDashboard({ socket, admin }) {
 
         /* Cyber Button */
         .btn-cyber {
-          background: rgba(0, 229, 255, 0.12);
-          border: 1px solid rgba(0, 229, 255, 0.4);
-          color: #38bdf8;
+          background: #e0f2fe;
+          border: 1px solid #bae6fd;
+          color: var(--primary-dark);
           padding: 8px 16px;
           border-radius: 8px;
           font-size: 0.82rem;
@@ -340,9 +329,9 @@ function SuperAdminNocDashboard({ socket, admin }) {
         }
 
         .btn-cyber:hover {
-          background: rgba(0, 229, 255, 0.25);
-          color: #ffffff;
-          box-shadow: 0 0 12px rgba(0, 229, 255, 0.4);
+          background: #ffffff;
+          color: var(--primary-dark);
+          box-shadow: var(--shadow-glow);
         }
 
         .btn-cyber:disabled {
@@ -360,34 +349,34 @@ function SuperAdminNocDashboard({ socket, admin }) {
         .noc-table th {
           text-align: left;
           padding: 10px 12px;
-          background: rgba(30, 41, 59, 0.7);
-          color: #94a3b8;
+          background: var(--bg-tertiary);
+          color: var(--text-muted);
           font-weight: 700;
           text-transform: uppercase;
           font-size: 0.72rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 0;
         }
 
         .noc-table td {
           padding: 10px 12px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-          color: #e2e8f0;
+          border-bottom: 0;
+          color: var(--text-primary);
           font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         }
 
         .noc-table tr:hover td {
-          background: rgba(255, 255, 255, 0.03);
+          background: var(--bg-card-hover);
         }
 
         /* Terminal Syslog Box */
         .noc-terminal {
-          background: #030712;
-          border: 1px solid #1f2937;
-          border-radius: 12px;
+          background: var(--bg-tertiary);
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-lg);
           padding: 16px;
           font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
           font-size: 0.78rem;
-          color: #4ade80;
+          color: var(--status-hijau);
           max-height: 280px;
           overflow-y: auto;
           display: flex;
@@ -404,13 +393,13 @@ function SuperAdminNocDashboard({ socket, admin }) {
         }
 
         .noc-terminal-time {
-          color: #64748b;
+          color: var(--text-muted);
           white-space: nowrap;
         }
 
         .noc-terminal-topic {
-          color: #38bdf8;
-          background: rgba(56, 189, 248, 0.1);
+          color: var(--primary);
+          background: var(--primary-glow);
           padding: 1px 6px;
           border-radius: 4px;
           font-size: 0.7rem;
@@ -418,7 +407,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
         }
 
         .noc-terminal-msg {
-          color: #e2e8f0;
+          color: var(--text-primary);
           word-break: break-word;
         }
       `}</style>
@@ -432,13 +421,13 @@ function SuperAdminNocDashboard({ socket, admin }) {
                 <span className="noc-beacon-dot" />
                 NOC Command Center Active
               </span>
-              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>•</span>
-              <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600 }}>Backbone RouterOS LDM</span>
+              <span style={{ fontSize: '0.78rem', color: '#bae6fd' }}>•</span>
+              <span style={{ fontSize: '0.78rem', color: '#e0f2fe', fontWeight: 600 }}>Backbone RouterOS LDM</span>
             </div>
             <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#ffffff', marginTop: '6px', letterSpacing: '-0.02em' }}>
               Super Admin IT & Infrastructure Center
             </h1>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', maxWidth: '650px', marginTop: '2px', lineHeight: 1.4 }}>
+            <p style={{ color: '#e0f2fe', fontSize: '0.85rem', maxWidth: '650px', marginTop: '2px', lineHeight: 1.4 }}>
               Pusat komando dan telemetri jaringan ISP PT. Lintas Data Multimedia. Memantau kesehatan RouterOS gateway, alokasi sesi PPPoE, interface fisik, serta integritas backend core secara langsung.
             </p>
           </div>
@@ -502,7 +491,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
         <div className="noc-hud-metrics">
           <div className="hud-metric-item">
             <span className="hud-metric-label">Router Model</span>
-            <span className="hud-metric-value" style={{ color: '#38bdf8' }}>
+            <span className="hud-metric-value" style={{ color: '#bae6fd' }}>
               {resources ? resources.board : 'hAP ac lite'}
             </span>
           </div>
@@ -514,7 +503,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
           </div>
           <div className="hud-metric-item">
             <span className="hud-metric-label">Router Uptime</span>
-            <span className="hud-metric-value" style={{ color: '#34d399' }}>
+            <span className="hud-metric-value" style={{ color: '#bbf7d0' }}>
               {resources ? resources.uptime : '0d 00:00:00'}
             </span>
           </div>
@@ -526,7 +515,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
           </div>
           <div className="hud-metric-item">
             <span className="hud-metric-label">DB Latency</span>
-            <span className="hud-metric-value" style={{ color: serverHealth && serverHealth.db_latency_ms >= 0 ? '#34d399' : '#f87171' }}>
+            <span className="hud-metric-value" style={{ color: serverHealth && serverHealth.db_latency_ms >= 0 ? '#bbf7d0' : '#fecaca' }}>
               {serverHealth && serverHealth.db_latency_ms >= 0 ? `${serverHealth.db_latency_ms} ms (MySQL OK)` : 'Offline'}
             </span>
           </div>
