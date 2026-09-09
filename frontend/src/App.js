@@ -52,7 +52,7 @@ function App() {
       try {
         setToken(savedToken);
         setAdmin(JSON.parse(savedAdmin));
-      } catch (e) {}
+      } catch (e) { }
     }
 
     var savedCustToken = localStorage.getItem('customer_token');
@@ -73,7 +73,7 @@ function App() {
           setCustomerToken(savedCustToken);
           setCustomer(custInfo);
         }
-      } catch (e) {}
+      } catch (e) { }
     }
 
     setLoading(false);
@@ -113,9 +113,9 @@ function App() {
       },
       function (error) {
         if (error.response) {
-          var isAuthExpired = error.response.status === 401 || 
+          var isAuthExpired = error.response.status === 401 ||
             (error.response.status === 403 && error.response.data?.message && (
-              error.response.data.message.includes('expired') || 
+              error.response.data.message.includes('expired') ||
               error.response.data.message.includes('Token tidak valid') ||
               error.response.data.message.includes('dinonaktifkan')
             ));
@@ -192,7 +192,7 @@ function App() {
     return (
       <div className={'app-layout' + (sidebarCollapsed ? ' sidebar-collapsed' : '')}>
         <Sidebar admin={admin} onLogout={handleLogout} socket={socket} collapsed={sidebarCollapsed} />
-        <Navbar admin={admin} onLogout={handleLogout} socket={socket} onToggleSidebar={function() { setSidebarCollapsed(!sidebarCollapsed); }} collapsed={sidebarCollapsed} />
+        <Navbar admin={admin} onLogout={handleLogout} socket={socket} onToggleSidebar={function () { setSidebarCollapsed(!sidebarCollapsed); }} collapsed={sidebarCollapsed} />
         <main className="app-main">
           <div className="app-content">
             <Routes>
@@ -204,7 +204,7 @@ function App() {
               <Route path="/dashboard/paket" element={<PaketPage />} />
               <Route path="/dashboard/mikrotik" element={<MikrotikPage socket={socket} />} />
               <Route path="/dashboard/reminder-logs" element={<ReminderLogPage />} />
-              <Route path="/dashboard/notifikasi" element={<NotifikasiPage socket={socket} />} />
+              <Route path="/dashboard/notifikasi" element={<NotifikasiPage socket={socket} admin={admin} />} />
               <Route path="/dashboard/profil" element={<ProfilPage />} />
 
               {/* Modul Finansial & Kasir dikelola khusus Admin operasional (Bukan Super Admin) */}

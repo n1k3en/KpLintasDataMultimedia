@@ -653,7 +653,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', fontSize: '0.8rem' }}>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>BACKEND PROCESS UPTIME</span>
-              <strong style={{ color: '#f1f5f9', fontFamily: 'monospace' }}>{serverHealth.server_uptime_formatted}</strong>
+              <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{serverHealth.server_uptime_formatted}</strong>
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>HEAP MEMORY USAGE</span>
@@ -661,7 +661,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>HOST OS RAM</span>
-              <strong style={{ color: '#f1f5f9', fontFamily: 'monospace' }}>{serverHealth.os_free_mem_mb} MB Free / {serverHealth.os_total_mem_mb} MB</strong>
+              <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{serverHealth.os_free_mem_mb} MB Free / {serverHealth.os_total_mem_mb} MB</strong>
             </div>
             <div>
               <span style={{ color: '#64748b', display: 'block', fontSize: '0.7rem' }}>CRON PPPOE SYNC</span>
