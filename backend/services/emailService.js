@@ -165,7 +165,7 @@ var EmailService = {
 
               <!-- Support Note -->
               <p style="margin: 0; font-size: 13.5px; color: #475569; text-align: left; line-height: 20px;">
-                Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:cs@lintasdata.net.id" style="color: #006190; text-decoration: underline;">cs@lintasdata.net.id</a>.
+                Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:helpdesk@ldm.net.id" style="color: #006190; text-decoration: underline;">helpdesk@ldm.net.id</a>.
               </p>
 
             </td>
@@ -220,7 +220,7 @@ var EmailService = {
 
   <p>Terima kasih telah mempercayakan PT. Lintas Data Multimedia sebagai teman koneksi internet Anda.</p>
 
-  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:cs@lintasdata.net.id">cs@lintasdata.net.id</a> atau WhatsApp <strong>+62 822-9913-9449</strong>.</p>
+  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:helpdesk@ldm.net.id">helpdesk@ldm.net.id</a> atau WhatsApp <strong>+62 857-2242-2448</strong>.</p>
 
   <p>Terima kasih,<br>
   <strong>PT Lintas Data Multimedia</strong></p>
@@ -266,7 +266,7 @@ var EmailService = {
 
   <p>Terima kasih telah mempercayakan PT. Lintas Data Multimedia sebagai penyedia layanan internet Anda.</p>
 
-  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:cs@lintasdata.net.id">cs@lintasdata.net.id</a> atau WhatsApp <strong>+62 822-9913-9449</strong>.</p>
+  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:helpdesk@ldm.net.id">helpdesk@ldm.net.id</a> atau WhatsApp <strong>+62 857-2242-2448</strong>.</p>
 
   <p>Terima kasih,<br>
   <strong>PT Lintas Data Multimedia</strong></p>
@@ -313,7 +313,7 @@ var EmailService = {
   <p>Silakan mengunggah ulang bukti pembayaran yang valid melalui link berikut:<br>
   <a href="${data.paymentUrl}">${data.paymentUrl}</a></p>
 
-  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:cs@lintasdata.net.id">cs@lintasdata.net.id</a> atau WhatsApp <strong>+62 822-9913-9449</strong>.</p>
+  <p>Bila ada pertanyaan, silakan hubungi kami pada email <a href="mailto:helpdesk@ldm.net.id">helpdesk@ldm.net.id</a> atau WhatsApp <strong>+62 822-9913-9449</strong>.</p>
 
   <p>Terima kasih,<br>
   <strong>PT Lintas Data Multimedia</strong></p>

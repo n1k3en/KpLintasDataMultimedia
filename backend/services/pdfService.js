@@ -148,8 +148,8 @@ var PdfService = {
         doc.text('Intiland Tower Lt. 11 Unit 3A', 40, compY); compY += 12;
         doc.text('Jl. Panglima Sudirman No. 101-103', 40, compY); compY += 12;
         doc.text('Surabaya, Jawa Timur 60271', 40, compY); compY += 12;
-        doc.text('Telp: (031) 33030088 / 0822-9913-9449', 40, compY); compY += 12;
-        doc.text('Email: cs@lintasdata.net.id', 40, compY);
+        doc.text('Telp: (031) 33030088 / 0857-2242-2448', 40, compY); compY += 12;
+        doc.text('Email: helpdesk@ldm.net.id', 40, compY);
 
         // Right Column: Tagihan Untuk (Detail Pelanggan)
         doc.fontSize(10).font('Helvetica-Bold').fillColor('#1E293B')
