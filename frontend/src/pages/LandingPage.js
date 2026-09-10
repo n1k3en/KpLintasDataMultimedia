@@ -595,7 +595,7 @@ function LandingPage({ customer, onLogout }) {
                       return <li key={i}><span className="material-symbols-outlined" style={{ fontSize: 20, color: 'var(--md-primary)' }}>check_circle</span> {f}</li>;
                     })}
                   </ul>
-                  <a href="https://wa.me/6282299139449?text=Halo%2C%20saya%20ingin%20mendaftar%20dan%20memesan%20layanan%20internet%20dari%20Lintas%20Data%20Multimedia" target="_blank" rel="noopener noreferrer" className={pkg.popular ? 'landing-btn-primary' : 'landing-btn-ghost'} style={{ width: '100%', justifyContent: 'center' }}>
+                  <a href="https://wa.me/6285722422448?text=Halo%2C%20saya%20ingin%20mendaftar%20dan%20memesan%20layanan%20internet%20dari%20Lintas%20Data%20Multimedia" target="_blank" rel="noopener noreferrer" className={pkg.popular ? 'landing-btn-primary' : 'landing-btn-ghost'} style={{ width: '100%', justifyContent: 'center' }}>
                     Daftar dan Pesan Via WhatsApp
                   </a>
                 </div>
@@ -617,7 +617,7 @@ function LandingPage({ customer, onLogout }) {
             <p>Bergabunglah dengan ratusan pelanggan puas Lintas Data Multimedia. Nikmati internet cepat tanpa batas dengan harga terjangkau dan instalasi gratis. Hubungi kami via WhatsApp untuk proses pendaftaran yang mudah dan cepat.</p>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
               <a
-                href="https://wa.me/6282299139449?text=Halo%2C%20saya%20ingin%20mendaftar%20layanan%20internet%20dari%20Lintas%20Data%20Multimedia."
+                href="https://wa.me/6285722422448?text=Halo%2C%20saya%20ingin%20mendaftar%20layanan%20internet%20dari%20Lintas%20Data%20Multimedia."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="landing-btn-primary landing-btn-lg"
@@ -682,17 +682,17 @@ function LandingPage({ customer, onLogout }) {
             <div className="landing-contact-item">
               <div className="landing-contact-icon"><span className="material-symbols-outlined">location_on</span></div>
               <h4>Alamat</h4>
-              <p>Intiland Tower Lantai 11 Unit 3A, Jl. Panglima Sudirman No. 101-103, Surabaya, Jawa Timur 60271</p>
+              <p>Intiland Tower 11th Floor 3A Jl. Panglima Sudirman 101-103  Surabaya, Jawa Timur, Indonesia 60271</p>
             </div>
             <div className="landing-contact-item">
               <div className="landing-contact-icon"><span className="material-symbols-outlined">call</span></div>
               <h4>Telepon</h4>
-              <p>(+6231) 33030088 / +62 822-9913-9449</p>
+              <p>(+6231) 33030088 / +62 857-2242-2448</p>
             </div>
             <div className="landing-contact-item">
               <div className="landing-contact-icon"><span className="material-symbols-outlined">mail</span></div>
               <h4>Email</h4>
-              <p>cs@lintasdata.net.id</p>
+              <p>helpdesk@ldm.net.id</p>
             </div>
           </div>
           <div className="landing-map">

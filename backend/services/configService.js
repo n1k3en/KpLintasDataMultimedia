@@ -98,9 +98,9 @@ var ConfigService = {
     return {
       // General ISP Profile
       NAMA_ISP: this.get('NAMA_ISP', 'Lintas Data Multimedia'),
-      EMAIL_CS: this.get('EMAIL_CS', 'cs@lintasdata.net'),
-      TELP_CS: this.get('TELP_CS', '+62 851-8200-1676'),
-      ALAMAT_ISP: this.get('ALAMAT_ISP', 'Jl. Raya Saronggi No. 45, Sumenep, Jawa Timur'),
+      EMAIL_CS: this.get('EMAIL_CS', 'helpdesk@ldm.net.id'),
+      TELP_CS: this.get('TELP_CS', '+62 857-2242-2448'),
+      ALAMAT_ISP: this.get('ALAMAT_ISP', 'Intiland Tower 11th Floor 3A Jl. Panglima Sudirman 101-103  Surabaya, Jawa Timur, Indonesia 60271'),
 
       // Mikrotik Router
       MIKROTIK_HOST: this.get('MIKROTIK_HOST', '192.168.50.1'),

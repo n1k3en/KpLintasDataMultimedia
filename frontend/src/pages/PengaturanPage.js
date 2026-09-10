@@ -15,9 +15,9 @@ function PengaturanPage() {
   // General settings state
   var [umum, setUmum] = useState({
     namaIsp: 'Lintas Data Multimedia',
-    emailCs: 'cs@lintasdata.net',
-    telpCs: '+62 851-8200-1676',
-    alamat: 'Jl. Raya Saronggi No. 45, Sumenep, Jawa Timur'
+    emailCs: 'helpdesk@ldm.net.id',
+    telpCs: '+62 857-2242-2448',
+    alamat: 'Intiland Tower 11th Floor 3A Jl. Panglima Sudirman 101-103  Surabaya, Jawa Timur, Indonesia 60271'
   });
 
   // Logo upload state
@@ -94,9 +94,9 @@ function PengaturanPage() {
           var cfg = res.data.data;
           setUmum({
             namaIsp: cfg.NAMA_ISP || 'Lintas Data Multimedia',
-            emailCs: cfg.EMAIL_CS || 'cs@lintasdata.net',
-            telpCs: cfg.TELP_CS || '+62 851-8200-1676',
-            alamat: cfg.ALAMAT_ISP || 'Jl. Raya Saronggi No. 45, Sumenep, Jawa Timur'
+            emailCs: cfg.EMAIL_CS || 'helpdesk@ldm.net.id',
+            telpCs: cfg.TELP_CS || '+62 857-2242-2448',
+            alamat: cfg.ALAMAT_ISP || 'Intiland Tower 11th Floor 3A Jl. Panglima Sudirman 101-103  Surabaya, Jawa Timur, Indonesia 60271'
           });
 
           setMikrotik({
