@@ -835,6 +835,11 @@ router.post('/duitku-payment', function (req, res) {
     })
       .then(function (duitkuRes) {
         if (duitkuRes.data && (duitkuRes.data.paymentUrl || duitkuRes.data.statusCode === '00')) {
+          console.log('=== DATA RESPONS DUITKU SANDBOX ===');
+          console.log('Seluruh data respons Duitku:', duitkuRes.data);
+          console.log('Duitku Reference (Gunakan ini untuk Simulator):', duitkuRes.data.reference);
+          console.log('Payment URL:', duitkuRes.data.paymentUrl);
+          console.log('====================================');
           res.json({
             success: true,
             paymentUrl: duitkuRes.data.paymentUrl,
