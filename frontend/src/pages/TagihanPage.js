@@ -914,7 +914,7 @@ function TagihanPage({ socket, admin }) {
               <button className="btn btn-secondary btn-sm" onClick={function () { setViewBuktiItem(null); }}>
                 Tutup
               </button>
-              <Link to="/dashboard/pembayaran?type=manual" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+              <Link to="/dashboard/notifikasi" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
                 Buka Menu Verifikasi Pembayaran
               </Link>
             </div>

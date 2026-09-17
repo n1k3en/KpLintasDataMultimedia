@@ -210,7 +210,8 @@ function App() {
               {/* Modul Finansial & Kasir dikelola khusus Admin operasional (Bukan Super Admin) */}
               <Route path="/dashboard/laporan" element={!isSuperAdmin ? <LaporanPage /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard/pembayaran" element={!isSuperAdmin ? <PembayaranPage socket={socket} /> : <Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard/pengaturan" element={isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} />
+              {/* <Route path="/dashboard/pengaturan" element={!isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} /> */}
+              <Route path="/dashboard/pengaturan" element={!isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard/kelola-admin" element={isSuperAdmin ? <KelolaAdminPage admin={admin} /> : <Navigate to="/dashboard" replace />} />
 
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
