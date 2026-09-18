@@ -11,6 +11,10 @@ function SuperAdminNocDashboard({ socket, admin }) {
   var [resources, setResources] = useState(null);
   var [interfaces, setInterfaces] = useState([]);
   var [logs, setLogs] = useState([]);
+  var [interfaceSource, setInterfaceSource] = useState('unknown');
+  var [logSource, setLogSource] = useState('unknown');
+  var [interfaceError, setInterfaceError] = useState(null);
+  var [logError, setLogError] = useState(null);
   var [serverHealth, setServerHealth] = useState(null);
   var [activeSessions, setActiveSessions] = useState([]);
   var [unregistered, setUnregistered] = useState([]);
@@ -41,8 +45,16 @@ function SuperAdminNocDashboard({ socket, admin }) {
       ]);
 
       if (resData.data.success && resData.data.data) setResources(resData.data.data);
-      if (ifData.data.success && ifData.data.data) setInterfaces(ifData.data.data);
-      if (logData.data.success && logData.data.data) setLogs(logData.data.data);
+      if (ifData.data.success) {
+        setInterfaces(ifData.data.data || []);
+        setInterfaceSource(ifData.data.source || 'unknown');
+        setInterfaceError(ifData.data.error || null);
+      }
+      if (logData.data.success) {
+        setLogs(logData.data.data || []);
+        setLogSource(logData.data.source || 'unknown');
+        setLogError(logData.data.error || null);
+      }
       if (healthData.data.success && healthData.data.data) setServerHealth(healthData.data.data);
       if (activeData.data.success && activeData.data.data) setActiveSessions(activeData.data.data);
       if (unregData.data.success && unregData.data.data) setUnregistered(unregData.data.data);
@@ -679,9 +691,15 @@ function SuperAdminNocDashboard({ socket, admin }) {
             MikroTik Interface Telemetry & Port Status
           </span>
           <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            Total {interfaces.length} Interface Terdeteksi
+            {interfaceSource === 'router' ? `RouterOS • ${interfaces.length} interface` : 'RouterOS tidak terhubung'}
           </span>
         </div>
+
+        {interfaceSource !== 'router' && (
+          <div style={{ color: '#fbbf24', fontSize: '0.78rem', padding: '10px 0' }}>
+            Data interface belum tersedia dari MikroTik. {interfaceError || 'Periksa koneksi API RouterOS.'}
+          </div>
+        )}
 
         <div style={{ overflowX: 'auto' }}>
           <table className="noc-table">
@@ -725,7 +743,7 @@ function SuperAdminNocDashboard({ socket, admin }) {
               {interfaces.length === 0 && (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
-                    Memuat status interface RouterOS...
+                    {interfaceSource === 'router' ? 'Tidak ada interface yang dikembalikan RouterOS.' : 'Tidak ada data interface aktual.'}
                   </td>
                 </tr>
               )}
@@ -893,6 +911,12 @@ function SuperAdminNocDashboard({ socket, admin }) {
             })}
           </div>
         </div>
+
+        {logSource !== 'router' && (
+          <div style={{ color: '#fbbf24', fontSize: '0.78rem', padding: '10px 0' }}>
+            Log belum tersedia dari MikroTik. {logError || 'Nama pengguna hanya akan muncul jika dikirim oleh RouterOS.'}
+          </div>
+        )}
 
         <div className="noc-terminal" ref={terminalRef}>
           {filteredLogs.map(function (l, idx) {

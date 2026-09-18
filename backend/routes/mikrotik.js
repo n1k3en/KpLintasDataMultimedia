@@ -108,10 +108,12 @@ router.get('/resources', async function(req, res) {
 /* GET /api/mikrotik/interfaces - Status dan traffic interface fisik & virtual */
 router.get('/interfaces', async function(req, res) {
   try {
-    var ifaces = await MikrotikService.getInterfaces();
+    var result = await MikrotikService.getInterfaces();
     res.json({
       success: true,
-      data: ifaces
+      data: result.data,
+      source: result.source,
+      error: result.error || null
     });
   } catch (err) {
     res.status(500).json({
@@ -125,10 +127,12 @@ router.get('/interfaces', async function(req, res) {
 /* GET /api/mikrotik/logs - Syslog dan event log RouterOS */
 router.get('/logs', async function(req, res) {
   try {
-    var logs = await MikrotikService.getLogs();
+    var result = await MikrotikService.getLogs();
     res.json({
       success: true,
-      data: logs
+      data: result.data,
+      source: result.source,
+      error: result.error || null
     });
   } catch (err) {
     res.status(500).json({

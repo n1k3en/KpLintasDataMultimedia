@@ -129,7 +129,8 @@ var MikrotikService = {
     try {
       var data = await executeCommand('/interface/print');
       if (Array.isArray(data) && data.length > 0) {
-        return data.map(function(item) {
+        return {
+          data: data.map(function(item) {
           return {
             id: item['.id'],
             name: item.name,
@@ -144,17 +145,13 @@ var MikrotikService = {
             tx_packet: parseInt(item['tx-packet'] || 0, 10),
             comment: item.comment || ''
           };
-        });
+          }),
+          source: 'router'
+        };
       }
       throw new Error('Tidak ada data interface');
     } catch (err) {
-      return [
-        { name: 'ether1-WAN', type: 'ether', running: true, disabled: false, mtu: 1500, mac_address: 'CC:2D:E0:41:8A:01', rx_byte: 1428571420, tx_byte: 852048590, rx_packet: 124890, tx_packet: 98450, comment: 'Uplink ISP Fiber Backbone' },
-        { name: 'ether2-LAN', type: 'ether', running: true, disabled: false, mtu: 1500, mac_address: 'CC:2D:E0:41:8A:02', rx_byte: 845209300, tx_byte: 1398504200, rx_packet: 95400, tx_packet: 121300, comment: 'Trunk to Core Switch CSW1' },
-        { name: 'ether3-MGMT', type: 'ether', running: false, disabled: false, mtu: 1500, mac_address: 'CC:2D:E0:41:8A:03', rx_byte: 0, tx_byte: 0, rx_packet: 0, tx_packet: 0, comment: 'OOB Management Port' },
-        { name: 'bridge-local', type: 'bridge', running: true, disabled: false, mtu: 1500, mac_address: 'CC:2D:E0:41:8A:02', rx_byte: 845209300, tx_byte: 1398504200, rx_packet: 95400, tx_packet: 121300, comment: 'Internal Distribution Bridge' },
-        { name: '<pppoe-server>', type: 'pppoe-in', running: true, disabled: false, mtu: 1492, mac_address: '-', rx_byte: 654890000, tx_byte: 1120450000, rx_packet: 82100, tx_packet: 104200, comment: 'PPPoE Access Concentrator Pool' }
-      ];
+      return { data: [], source: 'unavailable', error: err.message };
     }
   },
 
@@ -163,31 +160,21 @@ var MikrotikService = {
     try {
       var data = await executeCommand('/log/print');
       if (Array.isArray(data) && data.length > 0) {
-        return data.slice(-50).reverse().map(function(item) {
+        return {
+          data: data.slice(-50).reverse().map(function(item) {
           return {
             id: item['.id'],
             time: item.time,
             topics: item.topics,
             message: item.message
           };
-        });
+          }),
+          source: 'router'
+        };
       }
       throw new Error('Tidak ada data log');
     } catch (err) {
-      var now = new Date();
-      var t = function(offsetMin) {
-        var d = new Date(now.getTime() - offsetMin * 60000);
-        return d.toTimeString().split(' ')[0];
-      };
-      return [
-        { id: '*101', time: t(1), topics: 'ppp,info', message: 'PPPoE active session authenticated for user [darmawan] from 10.10.10.25' },
-        { id: '*102', time: t(3), topics: 'system,info', message: 'User [admin] authenticated via Web/API interface from 192.168.50.100' },
-        { id: '*103', time: t(8), topics: 'ppp,info', message: 'user [budi_santoso] connected: IP=10.10.10.14, MTU=1492, MRU=1492' },
-        { id: '*104', time: t(19), topics: 'interface,info', message: 'ether1-WAN link established (1000Mbps, full duplex)' },
-        { id: '*105', time: t(28), topics: 'system,info', message: 'NTP sync completed with id.pool.ntp.org (offset +0.001s)' },
-        { id: '*106', time: t(45), topics: 'ppp,warning', message: 'user [unknown_device] connection rejected: secret not found in database' },
-        { id: '*107', time: t(58), topics: 'firewall,info', message: 'redirected unauthenticated traffic to isolir walled-garden gateway' }
-      ];
+      return { data: [], source: 'unavailable', error: err.message };
     }
   },
 

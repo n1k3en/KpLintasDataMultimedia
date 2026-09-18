@@ -603,12 +603,15 @@ router.get('/midtrans-config', function (req, res) {
   var serverKey = ConfigService.get('MIDTRANS_SERVER_KEY', process.env.MIDTRANS_SERVER_KEY || '');
   var isSandboxConfig = ConfigService.get('MIDTRANS_IS_SANDBOX', process.env.MIDTRANS_IS_SANDBOX || 'true');
   var manualPaymentEnabled = ConfigService.get('MANUAL_PAYMENT_ENABLED', 'true') === 'true';
+  var activeGateway = ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans');
+  if (['midtrans', 'duitku'].indexOf(activeGateway) === -1) activeGateway = 'midtrans';
   var isSandbox = isSandboxConfig === 'true' || serverKey.startsWith('SB-') || clientKey.startsWith('SB-');
   res.json({
     success: true,
     clientKey: clientKey,
     isSandbox: isSandbox,
-    manualPaymentEnabled: manualPaymentEnabled
+    manualPaymentEnabled: manualPaymentEnabled,
+    activeGateway: activeGateway
   });
 });
 
@@ -616,6 +619,10 @@ router.get('/midtrans-config', function (req, res) {
 router.post('/midtrans-token', function (req, res) {
   var { id_tagihan } = req.body;
   var customerId = req.customerId;
+
+  if (ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans') !== 'midtrans') {
+    return res.status(403).json({ success: false, message: 'Payment Gateway Midtrans sedang tidak aktif.' });
+  }
 
   if (!id_tagihan) {
     return res.status(400).json({ success: false, message: 'ID Tagihan wajib disertakan.' });
@@ -697,6 +704,10 @@ router.post('/midtrans-token', function (req, res) {
 
 // GET /api/customer/portal/duitku-payment-methods - Get active payment methods from Duitku
 router.get('/duitku-payment-methods', async function (req, res) {
+  if (ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans') !== 'duitku') {
+    return res.status(403).json({ success: false, message: 'Payment Gateway Duitku sedang tidak aktif.' });
+  }
+
   var amount = parseInt(req.query.amount, 10) || 100000;
   var merchantCode = ConfigService.get('DUITKU_MERCHANT_CODE', process.env.DUITKU_MERCHANT_CODE || '');
   var apiKey = ConfigService.get('DUITKU_API_KEY', process.env.DUITKU_API_KEY || '');
@@ -754,6 +765,10 @@ router.get('/duitku-payment-methods', async function (req, res) {
 router.post('/duitku-payment', function (req, res) {
   var { id_tagihan, paymentMethod } = req.body;
   var customerId = req.customerId;
+
+  if (ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans') !== 'duitku') {
+    return res.status(403).json({ success: false, message: 'Payment Gateway Duitku sedang tidak aktif.' });
+  }
 
   if (!id_tagihan) {
     return res.status(400).json({ success: false, message: 'ID Tagihan wajib disertakan.' });
