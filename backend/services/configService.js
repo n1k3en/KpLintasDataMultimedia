@@ -95,6 +95,9 @@ var ConfigService = {
    * Mengambil seluruh konfigurasi aktif
    */
   getAll: function () {
+    var activePaymentGateway = this.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans');
+    if (['midtrans', 'duitku'].indexOf(activePaymentGateway) === -1) activePaymentGateway = 'midtrans';
+
     return {
       // General ISP Profile
       NAMA_ISP: this.get('NAMA_ISP', 'Lintas Data Multimedia'),
@@ -118,6 +121,9 @@ var ConfigService = {
       MIDTRANS_CLIENT_KEY: this.get('MIDTRANS_CLIENT_KEY', ''),
       MIDTRANS_SERVER_KEY: this.get('MIDTRANS_SERVER_KEY', ''),
       MIDTRANS_IS_SANDBOX: this.get('MIDTRANS_IS_SANDBOX', 'true'),
+
+      // Active payment gateway (only one gateway can be active at a time)
+      PAYMENT_GATEWAY_ACTIVE: activePaymentGateway,
 
       // Duitku Payment Gateway
       DUITKU_MERCHANT_CODE: this.get('DUITKU_MERCHANT_CODE', ''),

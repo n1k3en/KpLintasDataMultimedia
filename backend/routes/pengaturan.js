@@ -175,6 +175,10 @@ router.post('/config', async function (req, res) {
       return res.status(400).json({ success: false, message: 'Payload konfigurasi tidak valid.' });
     }
 
+    if (Object.prototype.hasOwnProperty.call(settings, 'PAYMENT_GATEWAY_ACTIVE') && ['midtrans', 'duitku'].indexOf(settings.PAYMENT_GATEWAY_ACTIVE) === -1) {
+      settings.PAYMENT_GATEWAY_ACTIVE = 'midtrans';
+    }
+
     await ConfigService.setMany(settings);
     res.json({
       success: true,
