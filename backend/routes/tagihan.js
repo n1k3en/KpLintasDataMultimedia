@@ -4,9 +4,8 @@ var db = require('../config/db');
 var Tagihan = require('../models/Tagihan');
 var verifyToken = require('../middleware/auth');
 
-// Protect all routes with admin token (accessible by operational Admin only, not Super Admin)
+// Protect all routes with an authenticated admin token.
 router.use(verifyToken);
-router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/tagihan - List semua tagihan dengan filter lengkap */
 router.get('/', function (req, res) {

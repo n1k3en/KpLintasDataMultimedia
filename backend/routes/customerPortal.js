@@ -49,6 +49,19 @@ function getNextMonthSameDay(currentDueDate) {
   return resultDate;
 }
 
+function getDaysUntilDate(dateString) {
+  var parts = String(dateString).split('-').map(Number);
+  var dueDate = new Date(parts[0], parts[1] - 1, parts[2]);
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  dueDate.setHours(0, 0, 0, 0);
+  return Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isFutureBillOutsideWindow(bill, currentPeriod) {
+  return bill && bill.periode > currentPeriod && getDaysUntilDate(bill.due_date) > 4;
+}
+
 // Duitku Webhook Callback Endpoint (Public - must be BEFORE verifyCustomerToken)
 router.post('/duitku-callback', function (req, res) {
   var notification = req.body || {};
@@ -403,6 +416,10 @@ router.get('/billing', function (req, res) {
       var checkPastPaidSql = "SELECT id_tagihan FROM tagihan WHERE id_pelanggan = ? AND periode = DATE_FORMAT(CURDATE(), '%Y-%m') AND status = 'lunas' LIMIT 1";
       db.query(checkPastPaidSql, [id_pelanggan], function (pastErr, pastResults) {
         var isPaidThisMonth = pastResults && pastResults.length > 0;
+        var currentPeriod = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+        if (isPaidThisMonth && isFutureBillOutsideWindow(results[0], currentPeriod)) {
+          return sendBillingResponse(null, true);
+        }
         sendBillingResponse(results[0], isPaidThisMonth);
       });
       return;
@@ -465,7 +482,16 @@ router.get('/billing', function (req, res) {
         `;
         db.query(checkNextBillSql, [id_pelanggan, nextPeriod], function (nbErr, nbResults) {
           if (!nbErr && nbResults && nbResults.length > 0) {
+            var currentPeriod = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+            if (hasPaidBill && isFutureBillOutsideWindow(nbResults[0], currentPeriod)) {
+              return sendBillingResponse(null, true);
+            }
             return sendBillingResponse(nbResults[0], hasPaidBill);
+          }
+
+          var currentPeriod = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0');
+          if (hasPaidBill && nextPeriod > currentPeriod && getDaysUntilDate(nextDueDateStr) > 4) {
+            return sendBillingResponse(null, true);
           }
 
           // Create tagihan for nextPeriod
@@ -604,7 +630,7 @@ router.get('/midtrans-config', function (req, res) {
   var isSandboxConfig = ConfigService.get('MIDTRANS_IS_SANDBOX', process.env.MIDTRANS_IS_SANDBOX || 'true');
   var manualPaymentEnabled = ConfigService.get('MANUAL_PAYMENT_ENABLED', 'true') === 'true';
   var activeGateway = ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans');
-  if (['midtrans', 'duitku'].indexOf(activeGateway) === -1) activeGateway = 'midtrans';
+  if (['midtrans', 'duitku', 'none'].indexOf(activeGateway) === -1) activeGateway = 'midtrans';
   var isSandbox = isSandboxConfig === 'true' || serverKey.startsWith('SB-') || clientKey.startsWith('SB-');
   res.json({
     success: true,

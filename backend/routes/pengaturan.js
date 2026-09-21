@@ -82,7 +82,6 @@ router.get('/logo', function (req, res) {
 
 // Protect POST/DELETE/PUT routes exclusively for Super Admin
 router.use(verifyToken);
-router.use(verifyToken.requireSuperAdmin);
 
 /* POST /api/pengaturan/logo - Upload new company logo */
 router.post('/logo', function (req, res) {
@@ -175,8 +174,19 @@ router.post('/config', async function (req, res) {
       return res.status(400).json({ success: false, message: 'Payload konfigurasi tidak valid.' });
     }
 
-    if (Object.prototype.hasOwnProperty.call(settings, 'PAYMENT_GATEWAY_ACTIVE') && ['midtrans', 'duitku'].indexOf(settings.PAYMENT_GATEWAY_ACTIVE) === -1) {
-      settings.PAYMENT_GATEWAY_ACTIVE = 'midtrans';
+    var hasGatewaySetting = Object.prototype.hasOwnProperty.call(settings, 'PAYMENT_GATEWAY_ACTIVE');
+    var hasManualSetting = Object.prototype.hasOwnProperty.call(settings, 'MANUAL_PAYMENT_ENABLED');
+    var requestedGateway = hasGatewaySetting ? settings.PAYMENT_GATEWAY_ACTIVE : ConfigService.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans');
+    var requestedManual = hasManualSetting
+      ? String(settings.MANUAL_PAYMENT_ENABLED) === 'true'
+      : ConfigService.get('MANUAL_PAYMENT_ENABLED', 'true') === 'true';
+
+    if (hasGatewaySetting && ['midtrans', 'duitku', 'none'].indexOf(requestedGateway) === -1) {
+      return res.status(400).json({ success: false, message: 'Gateway pembayaran tidak valid.' });
+    }
+
+    if (requestedGateway === 'none' && !requestedManual) {
+      return res.status(400).json({ success: false, message: 'Aktifkan pembayaran manual sebelum mematikan semua payment gateway.' });
     }
 
     await ConfigService.setMany(settings);

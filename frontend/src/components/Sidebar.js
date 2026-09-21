@@ -60,49 +60,49 @@ function Sidebar({ admin, onLogout, socket, collapsed }) {
       section: 'Utama',
       items: [
         { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
-        // { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
-        ...(!isSuperAdmin ? [
-          { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
-          { path: '/dashboard/tagihan', label: 'Tagihan', icon: 'receipt_long' },
-          {
-            path: '/dashboard/pembayaran', label: 'Pembayaran', icon: 'payments',
-            badge: pendingCount,
-            subItems: [
-              { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual' },
-              { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
-              { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
-            ]
-          }
-        ] : [])
+        { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
+        { path: '/dashboard/tagihan', label: 'Tagihan', icon: 'receipt_long' },
+        {
+          path: '/dashboard/pembayaran', label: 'Pembayaran', icon: 'payments',
+          badge: pendingCount,
+          subItems: [
+            { path: '/dashboard/pembayaran?type=manual', label: 'Transfer Manual' },
+            { path: '/dashboard/pembayaran?type=duitku', label: 'Duitku Gateway' },
+            { path: '/dashboard/pembayaran?type=midtrans', label: 'Midtrans' }
+          ]
+        },
+        //  { path: '/dashboard/pelanggan', label: 'Pelanggan', icon: 'group' },
+        // ...(!isSuperAdmin ? [
+        // ] : [])
       ]
     },
     {
       section: 'Monitoring',
       items: [
         { path: '/dashboard/mikrotik', label: 'Status Jaringan', icon: 'router' },
+        { path: '/dashboard/reminder-logs', label: 'Reminder Log', icon: 'mail' },
+        { path: '/dashboard/notifikasi', label: 'Log Notifikasi', icon: 'notifications' },
         // { path: '/dashboard/reminder-logs', label: 'Reminder Log', icon: 'mail' },
-        ...(!isSuperAdmin ? [
-          //  { path: '/dashboard/mikrotik', label: 'Status Jaringan', icon: 'router' },
-          { path: '/dashboard/reminder-logs', label: 'Reminder Log', icon: 'mail' },
-          { path: '/dashboard/notifikasi', label: 'Log Notifikasi', icon: 'notifications' }
-        ] : [])
+        // ...(!isSuperAdmin ? [
+        //    { path: '/dashboard/mikrotik', label: 'Status Jaringan', icon: 'router' },
+        // ] : [])
       ]
     },
     {
       section: 'Laporan',
-      items: !isSuperAdmin ? [
+      items: [
         { path: '/dashboard/laporan', label: 'Laporan Keuangan', icon: 'bar_chart' }
-      ] : []
+      ]
     },
     {
       section: 'Lainnya',
       items: [
         ...(isSuperAdmin ? [
-          { path: '/dashboard/kelola-admin', label: 'Kelola Admin', icon: 'manage_accounts' }
+          { path: '/dashboard/kelola-admin', label: 'Kelola Admin', icon: 'manage_accounts' },
         ] : []),
-        ...(!isSuperAdmin ? [
-          { path: '/dashboard/pengaturan', label: 'Pengaturan', icon: 'settings' }
-        ] : [])
+        { path: '/dashboard/pengaturan', label: 'Pengaturan', icon: 'settings' },
+        // ...(!isSuperAdmin ? [
+        // ] : [])
       ]
     }
   ].filter(function (sec) { return sec.items && sec.items.length > 0; });

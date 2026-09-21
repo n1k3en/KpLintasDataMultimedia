@@ -14,7 +14,6 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
 
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
-  var isSuperAdmin = admin && admin.role === 'superadmin';
 
   var fetchNotifications = function () {
     if (!token) return;
@@ -198,11 +197,42 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
 
       {/* Right side actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-        {!isSuperAdmin && (
-          <>
-            {/* Mail Icon */}
-            <Link
-              to="/dashboard/reminder-logs"
+        <>
+          {/* Mail Icon */}
+          <Link
+            to="/dashboard/reminder-logs"
+            style={{
+              color: '#ffffff',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={function (e) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            onMouseLeave={function (e) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.color = '#ffffff';
+            }}
+            title="Reminder Log"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
+              mail
+            </span>
+          </Link>
+
+          {/* Notifications Dropdown */}
+          <div ref={notifRef} style={{ position: 'relative' }}>
+            <div
+              onClick={function () { setNotifOpen(!notifOpen); setProfileOpen(false); }}
               style={{
                 color: '#ffffff',
                 background: 'rgba(255,255,255,0.1)',
@@ -214,6 +244,7 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
+                position: 'relative',
                 transition: 'all 0.2s ease'
               }}
               onMouseEnter={function (e) {
@@ -224,212 +255,178 @@ function Navbar({ admin, onLogout, socket, onToggleSidebar, collapsed }) {
                 e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
                 e.currentTarget.style.color = '#ffffff';
               }}
-              title="Reminder Log"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
-                mail
+                notifications
               </span>
-            </Link>
-
-            {/* Notifications Dropdown */}
-            <div ref={notifRef} style={{ position: 'relative' }}>
-              <div
-                onClick={function () { setNotifOpen(!notifOpen); setProfileOpen(false); }}
-                style={{
-                  color: '#ffffff',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '1px solid rgba(255,255,255,0.2)',
-                  borderRadius: '8px',
-                  width: '36px',
-                  height: '36px',
+              {unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  background: 'var(--status-merah)',
+                  color: 'white',
+                  fontSize: '0.62rem',
+                  fontWeight: '800',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={function (e) {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-                onMouseLeave={function (e) {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>
-                  notifications
-                </span>
-                {unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    background: 'var(--status-merah)',
-                    color: 'white',
-                    fontSize: '0.62rem',
-                    fontWeight: '800',
-                    borderRadius: '50%',
-                    width: '16px',
-                    height: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
-                  }}>
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-
-              {/* Notifications Dropdown Panel */}
-              {notifOpen && (
-                <div className="animate-fadeIn" style={{
-                  position: 'absolute',
-                  top: '38px',
-                  right: '-10px',
-                  background: '#ffffff',
-                  borderRadius: '8px',
-                  boxShadow: 'var(--shadow-lg)',
-                  border: '1px solid var(--border-color)',
-                  width: '320px',
-                  maxHeight: '400px',
-                  overflowY: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  zIndex: 110,
-                  color: 'var(--text-primary)'
+                  boxShadow: '0 2px 4px rgba(239, 68, 68, 0.3)'
                 }}>
-                  <div style={{
-                    padding: '12px 16px',
-                    borderBottom: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <span style={{ fontWeight: '700', fontSize: '0.85rem' }}>Notifikasi ({unreadCount} baru)</span>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={handleMarkAllRead}
-                        style={{
-                          border: 'none',
-                          background: 'transparent',
-                          color: 'var(--primary)',
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Tandai semua dibaca
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ overflowY: 'auto', flex: 1 }}>
-                    {notifs.length === 0 ? (
-                      <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                        Tidak ada notifikasi baru.
-                      </div>
-                    ) : (
-                      notifs.map(function (n) {
-                        var isUnread = n.status_baca === 0;
-                        var isMidtrans = n.bukti_file && n.bukti_file.includes('Midtrans');
-                        var title = isMidtrans ? 'Pembayaran Midtrans' : 'Verifikasi Pembayaran';
-                        var icon = 'payments';
-                        var iconBg = isMidtrans ? 'var(--status-hijau-bg)' : 'var(--status-kuning-bg)';
-                        var iconColor = isMidtrans ? 'var(--status-hijau)' : 'var(--status-kuning)';
-
-                        var desc = isMidtrans
-                          ? `Pembayaran otomatis via Midtrans dari ${n.nama_pelanggan} (Periode ${n.periode})`
-                          : `Pembayaran baru dari ${n.nama_pelanggan} (Periode ${n.periode})`;
-
-                        var targetLink = `/dashboard/notifikasi?notifId=${n.id_notifikasi}`;
-
-                        return (
-                          <div
-                            key={n.id_notifikasi}
-                            onClick={function () {
-                              handleMarkRead(n);
-                              setNotifOpen(false);
-                            }}
-                            style={{
-                              padding: '12px 16px',
-                              borderBottom: '1px solid var(--border-color)',
-                              background: isUnread ? 'rgba(0, 104, 118, 0.03)' : 'transparent',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              gap: '12px',
-                              transition: 'background 0.2s ease'
-                            }}
-                            onMouseEnter={function (e) { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
-                            onMouseLeave={function (e) { e.currentTarget.style.background = isUnread ? 'rgba(0, 104, 118, 0.03)' : 'transparent'; }}
-                          >
-                            <div style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '50%',
-                              background: iconBg,
-                              color: iconColor,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>{icon}</span>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <Link to={targetLink} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)' }}>{title}</div>
-                                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px', lineBreak: 'anywhere' }}>{desc}</div>
-                              </Link>
-                              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' }}>{formatTanggal(n.tanggal)}</div>
-                            </div>
-                            {isUnread && (
-                              <span style={{
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                background: 'var(--primary)',
-                                display: 'inline-block',
-                                marginTop: '4px',
-                                flexShrink: 0
-                              }} />
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  {/* View All Footer */}
-                  <div style={{
-                    padding: '10px 16px',
-                    borderTop: '1px solid var(--border-color)',
-                    textAlign: 'center',
-                    background: 'var(--bg-primary)',
-                    borderBottomLeftRadius: '8px',
-                    borderBottomRightRadius: '8px'
-                  }}>
-                    <Link
-                      to="/dashboard/notifikasi"
-                      onClick={function () { setNotifOpen(false); }}
-                      style={{
-                        color: 'var(--primary)',
-                        fontSize: '0.8rem',
-                        fontWeight: '700',
-                        textDecoration: 'none',
-                        display: 'block'
-                      }}
-                    >
-                      {/* Lihat Semua Notifikasi */}
-                    </Link>
-                  </div>
-                </div>
+                  {unreadCount}
+                </span>
               )}
             </div>
-          </>
-        )}
+
+            {/* Notifications Dropdown Panel */}
+            {notifOpen && (
+              <div className="animate-fadeIn" style={{
+                position: 'absolute',
+                top: '38px',
+                right: '-10px',
+                background: '#ffffff',
+                borderRadius: '8px',
+                boxShadow: 'var(--shadow-lg)',
+                border: '1px solid var(--border-color)',
+                width: '320px',
+                maxHeight: '400px',
+                overflowY: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                zIndex: 110,
+                color: 'var(--text-primary)'
+              }}>
+                <div style={{
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontWeight: '700', fontSize: '0.85rem' }}>Notifikasi ({unreadCount} baru)</span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleMarkAllRead}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--primary)',
+                        fontSize: '0.75rem',
+                        fontWeight: '700',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Tandai semua dibaca
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {notifs.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                      Tidak ada notifikasi baru.
+                    </div>
+                  ) : (
+                    notifs.map(function (n) {
+                      var isUnread = n.status_baca === 0;
+                      var isMidtrans = n.bukti_file && n.bukti_file.includes('Midtrans');
+                      var title = isMidtrans ? 'Pembayaran Midtrans' : 'Verifikasi Pembayaran';
+                      var icon = 'payments';
+                      var iconBg = isMidtrans ? 'var(--status-hijau-bg)' : 'var(--status-kuning-bg)';
+                      var iconColor = isMidtrans ? 'var(--status-hijau)' : 'var(--status-kuning)';
+
+                      var desc = isMidtrans
+                        ? `Pembayaran otomatis via Midtrans dari ${n.nama_pelanggan} (Periode ${n.periode})`
+                        : `Pembayaran baru dari ${n.nama_pelanggan} (Periode ${n.periode})`;
+
+                      var targetLink = `/dashboard/notifikasi?notifId=${n.id_notifikasi}`;
+
+                      return (
+                        <div
+                          key={n.id_notifikasi}
+                          onClick={function () {
+                            handleMarkRead(n);
+                            setNotifOpen(false);
+                          }}
+                          style={{
+                            padding: '12px 16px',
+                            borderBottom: '1px solid var(--border-color)',
+                            background: isUnread ? 'rgba(0, 104, 118, 0.03)' : 'transparent',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            gap: '12px',
+                            transition: 'background 0.2s ease'
+                          }}
+                          onMouseEnter={function (e) { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+                          onMouseLeave={function (e) { e.currentTarget.style.background = isUnread ? 'rgba(0, 104, 118, 0.03)' : 'transparent'; }}
+                        >
+                          <div style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '50%',
+                            background: iconBg,
+                            color: iconColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem' }}>{icon}</span>
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <Link to={targetLink} style={{ textDecoration: 'none', color: 'inherit' }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-primary)' }}>{title}</div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '2px', lineBreak: 'anywhere' }}>{desc}</div>
+                            </Link>
+                            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '4px' }}>{formatTanggal(n.tanggal)}</div>
+                          </div>
+                          {isUnread && (
+                            <span style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              background: 'var(--primary)',
+                              display: 'inline-block',
+                              marginTop: '4px',
+                              flexShrink: 0
+                            }} />
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* View All Footer */}
+                <div style={{
+                  padding: '10px 16px',
+                  borderTop: '1px solid var(--border-color)',
+                  textAlign: 'center',
+                  background: 'var(--bg-primary)',
+                  borderBottomLeftRadius: '8px',
+                  borderBottomRightRadius: '8px'
+                }}>
+                  <Link
+                    to="/dashboard/notifikasi"
+                    onClick={function () { setNotifOpen(false); }}
+                    style={{
+                      color: 'var(--primary)',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      textDecoration: 'none',
+                      display: 'block'
+                    }}
+                  >
+                    {/* Lihat Semua Notifikasi */}
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
 
         {/* Grid / Menu Icon */}
         <Link

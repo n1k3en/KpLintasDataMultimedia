@@ -271,6 +271,13 @@ function TemplateIcon({ name, size = 18, color = 'currentColor', strokeWidth = 1
                     <circle cx="12" cy="10" r="3" />
                 </svg>
             );
+        case 'whatsapp':
+            return (
+                <svg {...commonProps}>
+                    <path d="M20.5 11.5a8.5 8.5 0 0 1-12.7 7.4L3.5 20l1.1-4.1A8.5 8.5 0 1 1 20.5 11.5Z" />
+                    <path d="M8.5 8.5c.3-.4.7-.4 1-.1l1.1 1.3c.2.2.2.5.1.8l-.5.8c.6 1.2 1.5 2.1 2.7 2.7l.8-.5c.3-.2.6-.1.8.1l1.3 1.1c.3.3.3.7-.1 1-.5.5-1.2.7-1.8.5a8 8 0 0 1-5.8-5.8c-.2-.6 0-1.3.4-1.9Z" />
+                </svg>
+            );
         default:
             return null;
     }

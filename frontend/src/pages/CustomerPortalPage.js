@@ -58,15 +58,19 @@ function CustomerPortalPage({ onLogout }) {
     var gatewayVisible = ['midtrans', 'duitku'].indexOf(option.value) === -1 || option.value === activePaymentGateway;
     return gatewayVisible && (manualPaymentEnabled || manualMethods.indexOf(option.value) === -1);
   });
+  var singlePaymentMethod = paymentOptions.length === 1 ? paymentOptions[0].value : null;
 
   useEffect(function () {
     var manualMethods = ['qris', 'bri', 'mandiri', 'bca'];
-    if (!manualPaymentEnabled && manualMethods.indexOf(paymentMethod) !== -1) {
+    if (singlePaymentMethod && paymentMethod !== singlePaymentMethod) {
+      setPaymentMethod(singlePaymentMethod);
+      setDropdownOpen(false);
+    } else if (!manualPaymentEnabled && manualMethods.indexOf(paymentMethod) !== -1) {
       setPaymentMethod(activePaymentGateway !== 'none' ? activePaymentGateway : 'qris');
     } else if (['midtrans', 'duitku'].indexOf(paymentMethod) !== -1 && paymentMethod !== activePaymentGateway) {
       setPaymentMethod(activePaymentGateway !== 'none' ? activePaymentGateway : (manualPaymentEnabled ? 'qris' : 'midtrans'));
     }
-  }, [manualPaymentEnabled, paymentMethod, activePaymentGateway]);
+  }, [manualPaymentEnabled, paymentMethod, activePaymentGateway, singlePaymentMethod]);
 
   // Close dropdown when clicking outside
   useEffect(function () {
@@ -632,7 +636,7 @@ function CustomerPortalPage({ onLogout }) {
         return (
           <div className="portal-card" style={{ textAlign: 'center', padding: '48px 20px' }}>
             <span className="material-symbols-outlined" style={{ fontSize: 56, color: 'var(--status-hijau)', marginBottom: 16, display: 'block' }}>check_circle</span>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 8, color: 'var(--status-hijau)' }}>Tagihan Lunas Pada Bulan Ini</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 8, color: 'var(--status-hijau)' }}>Tagihan Bulan Ini Sudah Lunas</h3>
             <p style={{ color: 'var(--md-on-surface-variant)', fontSize: '0.88rem' }}>Terima kasih atas pembayaran Anda. Layanan internet Anda aktif.</p>
           </div>
         );
@@ -691,61 +695,72 @@ function CustomerPortalPage({ onLogout }) {
                 </span>
               </div>
 
-              {/* Custom Dropdown */}
-              <div style={dropdownStyles.container} ref={dropdownRef}>
-                <button
-                  type="button"
-                  style={dropdownStyles.trigger}
-                  onClick={function () { setDropdownOpen(!dropdownOpen); }}
-                >
-                  <div style={dropdownStyles.triggerLeft}>
-                    {selectedOpt && renderOptionIcon(selectedOpt)}
-                    <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--md-on-surface)' }}>{selectedOpt ? selectedOpt.label : ''}</div>
-                      {selectedOpt && selectedOpt.sublabel && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--md-on-surface-variant)', fontWeight: 400 }}>{selectedOpt.sublabel}</div>
-                      )}
+              {paymentOptions.length > 1 ? (
+                <div style={dropdownStyles.container} ref={dropdownRef}>
+                  <button
+                    type="button"
+                    style={dropdownStyles.trigger}
+                    onClick={function () { setDropdownOpen(!dropdownOpen); }}
+                  >
+                    <div style={dropdownStyles.triggerLeft}>
+                      {selectedOpt && renderOptionIcon(selectedOpt)}
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--md-on-surface)' }}>{selectedOpt ? selectedOpt.label : ''}</div>
+                        {selectedOpt && selectedOpt.sublabel && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--md-on-surface-variant)', fontWeight: 400 }}>{selectedOpt.sublabel}</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <span className="material-symbols-outlined" style={{
-                    fontSize: 20, color: 'var(--md-on-surface-variant)',
-                    transition: 'transform 0.2s ease',
-                    transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)'
-                  }}>expand_more</span>
-                </button>
+                    <span className="material-symbols-outlined" style={{
+                      fontSize: 20, color: 'var(--md-on-surface-variant)',
+                      transition: 'transform 0.2s ease',
+                      transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0)'
+                    }}>expand_more</span>
+                  </button>
 
-                {dropdownOpen && (
-                  <div style={dropdownStyles.menu}>
-                    {paymentOptions.map(function (opt) {
-                      var isSelected = opt.value === paymentMethod;
-                      return (
-                        <div
-                          key={opt.value}
-                          style={dropdownStyles.option(isSelected)}
-                          onClick={function () { handleSelectOption(opt.value); }}
-                          onMouseEnter={function (e) {
-                            if (!isSelected) e.currentTarget.style.background = 'var(--md-surface-container-low)';
-                          }}
-                          onMouseLeave={function (e) {
-                            if (!isSelected) e.currentTarget.style.background = 'transparent';
-                          }}
-                        >
-                          {renderOptionIcon(opt)}
-                          <div style={dropdownStyles.optionText}>
-                            <div style={dropdownStyles.optionLabel}>{opt.label}</div>
-                            {opt.sublabel && (
-                              <div style={dropdownStyles.optionSublabel}>{opt.sublabel}</div>
+                  {dropdownOpen && (
+                    <div style={dropdownStyles.menu}>
+                      {paymentOptions.map(function (opt) {
+                        var isSelected = opt.value === paymentMethod;
+                        return (
+                          <div
+                            key={opt.value}
+                            style={dropdownStyles.option(isSelected)}
+                            onClick={function () { handleSelectOption(opt.value); }}
+                            onMouseEnter={function (e) {
+                              if (!isSelected) e.currentTarget.style.background = 'var(--md-surface-container-low)';
+                            }}
+                            onMouseLeave={function (e) {
+                              if (!isSelected) e.currentTarget.style.background = 'transparent';
+                            }}
+                          >
+                            {renderOptionIcon(opt)}
+                            <div style={dropdownStyles.optionText}>
+                              <div style={dropdownStyles.optionLabel}>{opt.label}</div>
+                              {opt.sublabel && (
+                                <div style={dropdownStyles.optionSublabel}>{opt.sublabel}</div>
+                              )}
+                            </div>
+                            {isSelected && (
+                              <span className="material-symbols-outlined" style={dropdownStyles.selectedCheck}>check_circle</span>
                             )}
                           </div>
-                          {isSelected && (
-                            <span className="material-symbols-outlined" style={dropdownStyles.selectedCheck}>check_circle</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : selectedOpt ? (
+                <div style={{ ...dropdownStyles.container, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'var(--md-surface-container-low)', borderRadius: 'var(--radius-md)' }}>
+                  {renderOptionIcon(selectedOpt)}
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--md-on-surface)' }}>{selectedOpt.label}</div>
+                    {selectedOpt.sublabel && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--md-on-surface-variant)' }}>{selectedOpt.sublabel}</div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              ) : null}
 
               {renderPaymentDetail()}
             </div>

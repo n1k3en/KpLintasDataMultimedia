@@ -130,7 +130,7 @@ function PengaturanPage() {
             apiKey: cfg.DUITKU_API_KEY || '',
             appUrl: cfg.APP_URL || ''
           });
-          setActivePaymentGateway(['midtrans', 'duitku'].indexOf(cfg.PAYMENT_GATEWAY_ACTIVE) !== -1 ? cfg.PAYMENT_GATEWAY_ACTIVE : 'midtrans');
+          setActivePaymentGateway(['midtrans', 'duitku', 'none'].indexOf(cfg.PAYMENT_GATEWAY_ACTIVE) !== -1 ? cfg.PAYMENT_GATEWAY_ACTIVE : 'midtrans');
 
           setManualPaymentEnabled(cfg.MANUAL_PAYMENT_ENABLED !== 'false');
 
@@ -327,12 +327,12 @@ function PengaturanPage() {
   };
 
   var handleGatewayToggle = function (gateway, enabled) {
-    if (!enabled && activePaymentGateway === gateway) {
+    var previousGateway = activePaymentGateway;
+    var nextGateway = enabled ? gateway : 'none';
+    if (!enabled && !manualPaymentEnabled) {
+      setErrorMsg('Aktifkan pembayaran manual terlebih dahulu sebelum mematikan payment gateway.');
       return;
     }
-
-    var previousGateway = activePaymentGateway;
-    var nextGateway = enabled ? gateway : previousGateway;
     setActivePaymentGateway(nextGateway);
     saveQuickSetting('PAYMENT_GATEWAY_ACTIVE', nextGateway, function () {
       setSuccessMsg('Gateway pembayaran berhasil diperbarui.');
@@ -344,6 +344,10 @@ function PengaturanPage() {
 
   var handleManualPaymentToggle = function (enabled) {
     var previousValue = manualPaymentEnabled;
+    if (!enabled && activePaymentGateway === 'none') {
+      setErrorMsg('Minimal satu metode pembayaran harus tetap aktif. Aktifkan payment gateway atau tetap gunakan pembayaran manual.');
+      return;
+    }
     setManualPaymentEnabled(enabled);
     saveQuickSetting('MANUAL_PAYMENT_ENABLED', enabled, function () {
       setSuccessMsg('Pembayaran manual berhasil diperbarui.');
@@ -356,15 +360,15 @@ function PengaturanPage() {
   var renderQuickSwitch = function (isActive, onChange) {
     return (
       <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '42px', height: '22px', margin: 0, flexShrink: 0 }} title={isActive ? 'ON' : 'OFF'}>
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={function (e) { onChange(e.target.checked); }}
-            style={{ opacity: 0, width: 0, height: 0 }}
-          />
-          <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isActive ? 'var(--primary)' : '#ccc', transition: '.3s', borderRadius: '24px' }}>
-            <span style={{ position: 'absolute', height: '16px', width: '16px', left: isActive ? '23px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.3s', borderRadius: '50%' }} />
-          </span>
+        <input
+          type="checkbox"
+          checked={isActive}
+          onChange={function (e) { onChange(e.target.checked); }}
+          style={{ opacity: 0, width: 0, height: 0 }}
+        />
+        <span style={{ position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: isActive ? 'var(--primary)' : '#ccc', transition: '.3s', borderRadius: '24px' }}>
+          <span style={{ position: 'absolute', height: '16px', width: '16px', left: isActive ? '23px' : '3px', bottom: '3px', backgroundColor: 'white', transition: '.3s', borderRadius: '50%' }} />
+        </span>
       </label>
     );
   };

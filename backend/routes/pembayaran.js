@@ -2,20 +2,16 @@ var express = require('express');
 var router = express.Router();
 var Pembayaran = require('../models/Pembayaran');
 var verifyToken = require('../middleware/auth');
-var requireAdminOnly = verifyToken.requireAdminOnly;
 var Tagihan = require('../models/Tagihan');
 var Pelanggan = require('../models/Pelanggan');
 var MikrotikService = require('../services/mikrotik');
 var EmailService = require('../services/emailService');
 var PdfService = require('../services/pdfService');
 var SocketService = require('../services/socket');
-var verifyToken = require('../middleware/auth');
-
 var BillingService = require('../services/billingService');
 
-// Protect all payment verification routes (accessible by operational Admin only, not Super Admin)
+// Protect all payment routes with an authenticated admin token.
 router.use(verifyToken);
-router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/pembayaran/pending - Get all pending payment approvals */
 router.get('/pending', function (req, res) {
@@ -86,7 +82,7 @@ router.get('/manual', function (req, res) {
 });
 
 /* POST /api/pembayaran/:id/approve - Approve payment proof (Admin & Super Admin) */
-router.post('/:id/approve', requireAdminOnly, function (req, res) {
+router.post('/:id/approve', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId; // extracted from verifyToken middleware
 
@@ -127,7 +123,7 @@ router.post('/:id/approve', requireAdminOnly, function (req, res) {
 });
 
 /* POST /api/pembayaran/:id/reject - Reject payment proof (Admin & Super Admin) */
-router.post('/:id/reject', requireAdminOnly, function (req, res) {
+router.post('/:id/reject', function (req, res) {
   var id_pembayaran = req.params.id;
   var id_admin = req.adminId;
   var { alasan_tolak } = req.body;

@@ -8,10 +8,9 @@ var path = require('path'); // Wajib ditambahkan untuk memanggil path template
 
 // Protect all report routes with JWT authentication (accessible by operational Admin only, not Super Admin)
 router.use(verifyToken);
-router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/reports/summary - Get financial summary for a period */
-router.get('/summary', function(req, res) {
+router.get('/summary', function (req, res) {
   var { periode } = req.query;
   if (!periode) {
     var today = new Date();
@@ -32,12 +31,12 @@ router.get('/summary', function(req, res) {
     WHERE DATE_FORMAT(tanggal, '%Y-%m') = ?
   `;
 
-  db.query(incomeSql, [periode], function(err, incomeRes) {
+  db.query(incomeSql, [periode], function (err, incomeRes) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Gagal mengambil data pemasukan.' });
     }
 
-    db.query(expenseSql, [periode], function(err, expenseRes) {
+    db.query(expenseSql, [periode], function (err, expenseRes) {
       if (err) {
         return res.status(500).json({ success: false, message: 'Gagal mengambil data pengeluaran.' });
       }
@@ -60,7 +59,7 @@ router.get('/summary', function(req, res) {
 });
 
 /* GET /api/reports/details - Get financial transactions detail lists */
-router.get('/details', function(req, res) {
+router.get('/details', function (req, res) {
   var { periode } = req.query;
   if (!periode) {
     var today = new Date();
@@ -77,12 +76,12 @@ router.get('/details', function(req, res) {
     ORDER BY t.updated_at DESC
   `;
 
-  db.query(incomeSql, [periode], function(err, incomes) {
+  db.query(incomeSql, [periode], function (err, incomes) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Gagal mengambil detail pemasukan.' });
     }
 
-    Pengeluaran.getAll(periode, function(err, expenses) {
+    Pengeluaran.getAll(periode, function (err, expenses) {
       if (err) {
         return res.status(500).json({ success: false, message: 'Gagal mengambil detail pengeluaran.' });
       }
@@ -299,7 +298,7 @@ router.get('/export-excel', function (req, res) {
           kpiVal3.alignment = alignCenter;
 
           // Border for summary boxes
-          ['B6','C6','D6','B7','C7','D7','E6','F6','G6','E7','F7','G7','H6','I6','J6','H7','I7','J7'].forEach(function (addr) {
+          ['B6', 'C6', 'D6', 'B7', 'C7', 'D7', 'E6', 'F6', 'G6', 'E7', 'F7', 'G7', 'H6', 'I6', 'J6', 'H7', 'I7', 'J7'].forEach(function (addr) {
             sheet.getCell(addr).border = borderThin;
           });
 
@@ -441,7 +440,7 @@ router.get('/export-excel', function (req, res) {
               r.getCell(5).value = item.keterangan || '-';
               r.getCell(6).value = item.nama_admin || '-';
               r.getCell(7).value = item.tipe === 'fix' ? 'Beban Tetap (Fix)' : 'Beban Variabel';
-              
+
               sheet.mergeCells('G' + currentRow + ':I' + currentRow);
 
               var expNominalCell = r.getCell(10);
@@ -505,7 +504,7 @@ router.get('/export-excel', function (req, res) {
 });
 
 /* GET /api/reports/yearly-chart - Get 12 months of financial data for line chart */
-router.get('/yearly-chart', function(req, res) {
+router.get('/yearly-chart', function (req, res) {
   var year = req.query.year;
   if (!year) {
     year = new Date().getFullYear();
@@ -532,22 +531,22 @@ router.get('/yearly-chart', function(req, res) {
     ORDER BY bulan
   `;
 
-  db.query(incomeSql, [year], function(err, incomeRows) {
+  db.query(incomeSql, [year], function (err, incomeRows) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Gagal mengambil data pemasukan tahunan.' });
     }
 
-    db.query(expenseSql, [year], function(err, expenseRows) {
+    db.query(expenseSql, [year], function (err, expenseRows) {
       if (err) {
         return res.status(500).json({ success: false, message: 'Gagal mengambil data pengeluaran tahunan.' });
       }
 
       // Build a map for quick lookup
       var incomeMap = {};
-      incomeRows.forEach(function(r) { incomeMap[r.bulan] = parseFloat(r.total); });
+      incomeRows.forEach(function (r) { incomeMap[r.bulan] = parseFloat(r.total); });
 
       var expenseMap = {};
-      expenseRows.forEach(function(r) { expenseMap[r.bulan] = parseFloat(r.total); });
+      expenseRows.forEach(function (r) { expenseMap[r.bulan] = parseFloat(r.total); });
 
       // Build 12-month array
       var months = [];
@@ -574,7 +573,7 @@ router.get('/yearly-chart', function(req, res) {
 });
 
 /* GET /api/reports/daily-trend - Get daily bill issuance and payment collections for a month */
-router.get('/daily-trend', function(req, res) {
+router.get('/daily-trend', function (req, res) {
   var { periode } = req.query;
   if (!periode) {
     var today = new Date();
@@ -606,23 +605,23 @@ router.get('/daily-trend', function(req, res) {
     GROUP BY hari
   `;
 
-  db.query(issuedSql, [periode], function(err, issuedRows) {
+  db.query(issuedSql, [periode], function (err, issuedRows) {
     if (err) {
       console.error('[Daily Trend API] Error fetching issued bills:', err.message);
       return res.status(500).json({ success: false, message: 'Gagal mengambil data tagihan terbit harian.' });
     }
 
-    db.query(collectedSql, [periode], function(err2, collectedRows) {
+    db.query(collectedSql, [periode], function (err2, collectedRows) {
       if (err2) {
         console.error('[Daily Trend API] Error fetching collected payments:', err2.message);
         return res.status(500).json({ success: false, message: 'Gagal mengambil data pembayaran masuk harian.' });
       }
 
       var issuedMap = {};
-      issuedRows.forEach(function(r) { issuedMap[r.hari] = parseFloat(r.total); });
+      issuedRows.forEach(function (r) { issuedMap[r.hari] = parseFloat(r.total); });
 
       var collectedMap = {};
-      collectedRows.forEach(function(r) { collectedMap[r.hari] = parseFloat(r.total); });
+      collectedRows.forEach(function (r) { collectedMap[r.hari] = parseFloat(r.total); });
 
       var dailyData = [];
       for (var d = 1; d <= daysInMonth; d++) {
