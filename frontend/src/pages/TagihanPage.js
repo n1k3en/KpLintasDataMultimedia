@@ -692,7 +692,7 @@ function TagihanPage({ socket, admin }) {
                       <td style={{ textAlign: 'center' }}>
                         <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
                           {/* Copy Link Bayar */}
-                          <button
+                          {/* <button
                             type="button"
                             className="action-icon-btn"
                             title="Salin Link Pembayaran Pelanggan"
@@ -701,7 +701,7 @@ function TagihanPage({ socket, admin }) {
                             <span className="material-symbols-outlined" style={{ fontSize: 16, color: copiedId === item.id_tagihan ? '#0f9d58' : 'inherit' }}>
                               {copiedId === item.id_tagihan ? 'done' : 'link'}
                             </span>
-                          </button>
+                          </button> */}
 
                           {/* WhatsApp Reminder */}
                           {item.no_hp && item.status !== 'lunas' && (

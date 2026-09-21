@@ -5,10 +5,9 @@ var verifyToken = require('../middleware/auth');
 
 // Protect all routes with JWT authentication (accessible by operational Admin only, not Super Admin)
 router.use(verifyToken);
-router.use(verifyToken.requireAdminOnly);
 
 /* GET /api/pengeluaran - List monthly expenses */
-router.get('/', function(req, res) {
+router.get('/', function (req, res) {
   var { periode } = req.query;
   if (!periode) {
     var today = new Date();
@@ -17,7 +16,7 @@ router.get('/', function(req, res) {
     periode = y + '-' + (m < 10 ? '0' + m : m);
   }
 
-  Pengeluaran.getAll(periode, function(err, results) {
+  Pengeluaran.getAll(periode, function (err, results) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
@@ -26,7 +25,7 @@ router.get('/', function(req, res) {
 });
 
 /* POST /api/pengeluaran - Add new expense */
-router.post('/', function(req, res) {
+router.post('/', function (req, res) {
   var { kategori, nominal, tipe, tanggal, keterangan } = req.body;
   var id_admin = req.adminId;
 
@@ -41,7 +40,7 @@ router.post('/', function(req, res) {
     tipe: tipe,
     tanggal: tanggal,
     keterangan: keterangan
-  }, function(err, result) {
+  }, function (err, result) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Gagal menambahkan pengeluaran.' });
     }
@@ -54,7 +53,7 @@ router.post('/', function(req, res) {
 });
 
 /* PUT /api/pengeluaran/:id - Update expense details */
-router.put('/:id', function(req, res) {
+router.put('/:id', function (req, res) {
   var id = req.params.id;
   var { kategori, nominal, tipe, tanggal, keterangan } = req.body;
 
@@ -62,7 +61,7 @@ router.put('/:id', function(req, res) {
     return res.status(400).json({ success: false, message: 'Kategori, nominal, tipe, dan tanggal wajib diisi.' });
   }
 
-  Pengeluaran.getById(id, function(err, expense) {
+  Pengeluaran.getById(id, function (err, expense) {
     if (err) return res.status(500).json({ success: false, message: 'Database error' });
     if (!expense) return res.status(404).json({ success: false, message: 'Pengeluaran tidak ditemukan.' });
 
@@ -72,7 +71,7 @@ router.put('/:id', function(req, res) {
       tipe: tipe,
       tanggal: tanggal,
       keterangan: keterangan
-    }, function(err) {
+    }, function (err) {
       if (err) return res.status(500).json({ success: false, message: 'Gagal memperbarui pengeluaran.' });
       res.json({ success: true, message: 'Pengeluaran berhasil diperbarui!' });
     });
@@ -80,14 +79,14 @@ router.put('/:id', function(req, res) {
 });
 
 /* DELETE /api/pengeluaran/:id - Remove expense */
-router.delete('/:id', function(req, res) {
+router.delete('/:id', function (req, res) {
   var id = req.params.id;
 
-  Pengeluaran.getById(id, function(err, expense) {
+  Pengeluaran.getById(id, function (err, expense) {
     if (err) return res.status(500).json({ success: false, message: 'Database error' });
     if (!expense) return res.status(404).json({ success: false, message: 'Pengeluaran tidak ditemukan.' });
 
-    Pengeluaran.delete(id, function(err) {
+    Pengeluaran.delete(id, function (err) {
       if (err) return res.status(500).json({ success: false, message: 'Gagal menghapus pengeluaran.' });
       res.json({ success: true, message: 'Pengeluaran berhasil dihapus.' });
     });

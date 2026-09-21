@@ -200,7 +200,7 @@ function App() {
               <Route path="/admin/login" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage socket={socket} admin={admin} />} />
               <Route path="/dashboard/pelanggan" element={<PelangganPage socket={socket} />} />
-              <Route path="/dashboard/tagihan" element={!isSuperAdmin ? <TagihanPage socket={socket} admin={admin} /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard/tagihan" element={<TagihanPage socket={socket} admin={admin} />} />
               <Route path="/dashboard/paket" element={<PaketPage />} />
               <Route path="/dashboard/mikrotik" element={<MikrotikPage socket={socket} />} />
               <Route path="/dashboard/reminder-logs" element={<ReminderLogPage />} />
@@ -208,10 +208,10 @@ function App() {
               <Route path="/dashboard/profil" element={<ProfilPage />} />
 
               {/* Modul Finansial & Kasir dikelola khusus Admin operasional (Bukan Super Admin) */}
-              <Route path="/dashboard/laporan" element={!isSuperAdmin ? <LaporanPage /> : <Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard/pembayaran" element={!isSuperAdmin ? <PembayaranPage socket={socket} /> : <Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard/laporan" element={<LaporanPage />} />
+              <Route path="/dashboard/pembayaran" element={<PembayaranPage socket={socket} />} />
+              <Route path="/dashboard/pengaturan" element={<PengaturanPage />} />
               {/* <Route path="/dashboard/pengaturan" element={!isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} /> */}
-              <Route path="/dashboard/pengaturan" element={!isSuperAdmin ? <PengaturanPage /> : <Navigate to="/dashboard" replace />} />
               <Route path="/dashboard/kelola-admin" element={isSuperAdmin ? <KelolaAdminPage admin={admin} /> : <Navigate to="/dashboard" replace />} />
 
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
