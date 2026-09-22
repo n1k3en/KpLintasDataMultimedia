@@ -49,8 +49,8 @@ var Pelanggan = {
   create: function(data, callback) {
     var sql = `
       INSERT INTO pelanggan 
-      (nama, alamat, latitude, longitude, no_hp, pppoe_username, paket, due_date, email) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (nama, alamat, latitude, longitude, no_hp, pppoe_username, paket, due_date, email, password) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     var values = [
       data.nama,
@@ -61,7 +61,8 @@ var Pelanggan = {
       data.pppoe_username || '',
       data.paket || '',
       data.due_date || null,
-      data.email || null
+      data.email || null,
+      data.password
     ];
     db.query(sql, values, function(err, result) {
       if (err) return callback(err, null);
@@ -122,6 +123,15 @@ var Pelanggan = {
     db.query(sql, [email], function(err, results) {
       if (err) return callback(err, null);
       callback(null, results[0] || null);
+    });
+  },
+
+  // Update password pelanggan berdasarkan email
+  updatePasswordByEmail: function(email, passwordHash, callback) {
+    var sql = 'UPDATE pelanggan SET password = ? WHERE email = ?';
+    db.query(sql, [passwordHash, email], function(err, result) {
+      if (err) return callback(err, null);
+      callback(null, result);
     });
   },
 

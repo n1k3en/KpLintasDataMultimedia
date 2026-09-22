@@ -12,17 +12,11 @@ function KelolaAdminPage({ admin: currentAdmin }) {
   // Modal Tambah Admin
   var [showAddModal, setShowAddModal] = useState(false);
   var [formNama, setFormNama] = useState('');
-  var [formUsername, setFormUsername] = useState('');
+  var [formEmail, setFormEmail] = useState('');
   var [formPassword, setFormPassword] = useState('');
   var [formRole, setFormRole] = useState('admin');
   var [submitting, setSubmitting] = useState(false);
   var [formError, setFormError] = useState('');
-
-  // Modal Reset Password
-  var [resetTarget, setResetTarget] = useState(null);
-  var [newPassword, setNewPassword] = useState('');
-  var [resetSubmitting, setResetSubmitting] = useState(false);
-  var [resetError, setResetError] = useState('');
 
   // Modal Hapus Admin
   var [deleteTarget, setDeleteTarget] = useState(null);
@@ -55,8 +49,8 @@ function KelolaAdminPage({ admin: currentAdmin }) {
     e.preventDefault();
     setFormError('');
 
-    if (!formNama || !formUsername || !formPassword) {
-      setFormError('Nama, username, dan password wajib diisi.');
+    if (!formNama || !formEmail || !formPassword) {
+      setFormError('Nama, email, dan password wajib diisi.');
       return;
     }
 
@@ -71,7 +65,7 @@ function KelolaAdminPage({ admin: currentAdmin }) {
         API_BASE_URL + '/api/users',
         {
           nama: formNama,
-          username: formUsername,
+          email: formEmail,
           password: formPassword,
           role: formRole
         },
@@ -81,7 +75,7 @@ function KelolaAdminPage({ admin: currentAdmin }) {
       if (res.data.success) {
         setShowAddModal(false);
         setFormNama('');
-        setFormUsername('');
+        setFormEmail('');
         setFormPassword('');
         setFormRole('admin');
         setSuccessMsg(res.data.message || 'Akun berhasil dibuat!');
@@ -108,35 +102,6 @@ function KelolaAdminPage({ admin: currentAdmin }) {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal mengubah status akun.');
-    }
-  }
-
-  async function handleResetPassword(e) {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      setResetError('Password baru minimal 6 karakter.');
-      return;
-    }
-
-    setResetSubmitting(true);
-    setResetError('');
-    try {
-      var res = await axios.put(
-        API_BASE_URL + '/api/users/' + resetTarget.id_admin + '/reset-password',
-        { newPassword: newPassword },
-        { headers: headers }
-      );
-
-      if (res.data.success) {
-        setResetTarget(null);
-        setNewPassword('');
-        setSuccessMsg('Password untuk ' + resetTarget.nama + ' berhasil diperbarui!');
-        setTimeout(function () { setSuccessMsg(''); }, 4000);
-      }
-    } catch (err) {
-      setResetError(err.response?.data?.message || 'Gagal mereset password.');
-    } finally {
-      setResetSubmitting(false);
     }
   }
 
@@ -324,16 +289,16 @@ function KelolaAdminPage({ admin: currentAdmin }) {
                 <tr>
                   <th>No</th>
                   <th>Nama Lengkap</th>
-                  <th>Username</th>
+                  <th>Email</th>
                   <th>Peran (Role)</th>
                   <th>Status Akun</th>
                   <th>Terdaftar Sejak</th>
-                  <th style={{ textAlign: 'center' }}>Tindakan</th>
+                  <th style={{ textAlign: 'center' }}>Aksi</th>
                 </tr>
               </thead>
               <tbody>
                 {users.map(function (u, idx) {
-                  var isSelf = currentAdmin && (currentAdmin.id === u.id_admin || currentAdmin.username === u.username);
+                  var isSelf = currentAdmin && (currentAdmin.id === u.id_admin || currentAdmin.email === u.email);
                   return (
                     <tr key={u.id_admin}>
                       <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
@@ -344,7 +309,7 @@ function KelolaAdminPage({ admin: currentAdmin }) {
                       </td>
                       <td>
                         <code style={{ background: 'var(--bg-tertiary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.82rem' }}>
-                          {u.username}
+                          {u.email}
                         </code>
                       </td>
                       <td>
@@ -377,17 +342,6 @@ function KelolaAdminPage({ admin: currentAdmin }) {
                               {u.status === 'aktif' ? 'Bekukan' : 'Aktifkan'}
                             </button>
                           )}
-
-                          {/* Reset Password button */}
-                          <button
-                            type="button"
-                            className="action-btn-pill"
-                            title="Reset Password"
-                            onClick={function () { setResetTarget(u); setNewPassword(''); setResetError(''); }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>lock_reset</span>
-                            Reset Pass
-                          </button>
 
                           {/* Delete button (only if not self) */}
                           {!isSelf && (
@@ -438,12 +392,12 @@ function KelolaAdminPage({ admin: currentAdmin }) {
           </div>
 
           <div className="form-group" style={{ marginBottom: '14px' }}>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Username Login *</label>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Email Login *</label>
             <input
-              type="text"
-              placeholder="Contoh: budi_cs"
-              value={formUsername}
-              onChange={function (e) { setFormUsername(e.target.value); }}
+              type="email"
+              placeholder="Contoh: budi@lintasdata.net"
+              value={formEmail}
+              onChange={function (e) { setFormEmail(e.target.value); }}
               required
               style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-color)', fontSize: '0.9rem', outline: 'none' }}
             />
@@ -485,47 +439,6 @@ function KelolaAdminPage({ admin: currentAdmin }) {
         </form>
       </Modal>
 
-      {/* Modal Reset Password */}
-      <Modal
-        isOpen={!!resetTarget}
-        onClose={function () { setResetTarget(null); }}
-        title={'Reset Password: ' + resetTarget?.nama}
-      >
-        <form onSubmit={handleResetPassword}>
-          {resetError && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', marginBottom: '16px', fontSize: '0.85rem', fontWeight: 600 }}>
-              {resetError}
-            </div>
-          )}
-
-          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-            Masukkan password baru untuk akun <strong>{resetTarget?.username}</strong> ({resetTarget?.nama}).
-          </p>
-
-          <div className="form-group" style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Password Baru (Min. 6 Karakter) *</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={newPassword}
-              onChange={function (e) { setNewPassword(e.target.value); }}
-              required
-              minLength={6}
-              style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-color)', fontSize: '0.9rem', outline: 'none' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button type="button" className="btn btn-secondary" onClick={function () { setResetTarget(null); }} disabled={resetSubmitting}>
-              Batal
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={resetSubmitting}>
-              {resetSubmitting ? 'Menyimpan...' : 'Ubah Password'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
       {/* Modal Hapus Admin */}
       <Modal
         isOpen={!!deleteTarget}
@@ -534,7 +447,7 @@ function KelolaAdminPage({ admin: currentAdmin }) {
       >
         <div style={{ padding: '8px 0' }}>
           <p style={{ fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '16px', lineHeight: 1.5 }}>
-            Apakah Anda yakin ingin menghapus akun admin <strong>{deleteTarget?.nama}</strong> (<code>{deleteTarget?.username}</code>)? Tindakan ini tidak dapat dibatalkan.
+            Apakah Anda yakin ingin menghapus akun admin <strong>{deleteTarget?.nama}</strong> (<code>{deleteTarget?.email}</code>)? Tindakan ini tidak dapat dibatalkan.
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <button type="button" className="btn btn-secondary" onClick={function () { setDeleteTarget(null); }} disabled={deleteSubmitting}>

@@ -20,7 +20,7 @@ function verifyToken(req, res, next) {
       });
     }
     req.adminId = decoded.id;
-    req.adminUsername = decoded.username;
+    req.adminEmail = decoded.email;
     req.adminRole = decoded.role || 'admin';
     next();
   });

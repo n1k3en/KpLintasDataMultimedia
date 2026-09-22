@@ -7,8 +7,13 @@ import { useLogo } from '../context/LogoContext';
 
 function LoginPage({ onLogin }) {
   var { logoUrl } = useLogo();
-  var [username, setUsername] = useState('');
+  var [email, setEmail] = useState('');
   var [password, setPassword] = useState('');
+  var [forgotMode, setForgotMode] = useState(false);
+  var [forgotStep, setForgotStep] = useState(1);
+  var [forgotOtp, setForgotOtp] = useState('');
+  var [newPassword, setNewPassword] = useState('');
+  var [confirmPassword, setConfirmPassword] = useState('');
   var [error, setError] = useState('');
   var [loading, setLoading] = useState(false);
 
@@ -19,7 +24,7 @@ function LoginPage({ onLogin }) {
 
     try {
       var response = await axios.post(`${API_BASE_URL}/api/auth/login`, {
-        username: username,
+        email: email,
         password: password
       });
 
@@ -35,6 +40,64 @@ function LoginPage({ onLogin }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function requestResetOtp(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/request-otp`, { email: email });
+      setForgotStep(2);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengirim OTP.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resetPassword(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/reset`, {
+        email: email,
+        otp: forgotOtp,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword
+      });
+      setForgotMode(false);
+      setForgotStep(1);
+      setForgotOtp('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword('');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengubah password.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyResetOtp(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/auth/forgot-password/verify-otp`, { email: email, otp: forgotOtp });
+      setForgotStep(3);
+    } catch (err) {
+      setError(err.response?.data?.message || 'OTP tidak valid atau sudah kedaluwarsa.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function switchToLogin() {
+    setForgotMode(false);
+    setForgotStep(1);
+    setError('');
   }
 
   return (
@@ -55,15 +118,53 @@ function LoginPage({ onLogin }) {
             </div>
           )}
 
+          {forgotMode ? (
+            forgotStep === 1 ? (
+              <form className="login-form" onSubmit={requestResetOtp}>
+                <div className="form-group">
+                  <label><TemplateIcon name="mail" size={14} style={{ marginRight: '6px' }} /> Email Admin</label>
+                  <input type="email" placeholder="Masukkan email admin" value={email} onChange={function (e) { setEmail(e.target.value); }} required autoFocus />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Mengirim OTP...' : 'Kirim OTP'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={switchToLogin}>Kembali ke Login</button>
+              </form>
+            ) : forgotStep === 2 ? (
+              <form className="login-form" onSubmit={verifyResetOtp}>
+                <div className="form-group">
+                  <label>Kode OTP</label>
+                  <input type="text" inputMode="numeric" maxLength="6" value={forgotOtp} onChange={function (e) { setForgotOtp(e.target.value); }} required autoFocus />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Memverifikasi OTP...' : 'Verifikasi OTP'}</button>
+                <button type="button" className="btn btn-secondary" onClick={switchToLogin}>Kembali ke Login</button>
+              </form>
+            ) : (
+              <form className="login-form" onSubmit={resetPassword}>
+                <div className="form-group">
+                  <label>Password Baru</label>
+                  <input type="password" minLength="6" value={newPassword} onChange={function (e) { setNewPassword(e.target.value); }} required />
+                </div>
+                <div className="form-group">
+                  <label>Verifikasi Password Baru</label>
+                  <input type="password" minLength="6" value={confirmPassword} onChange={function (e) { setConfirmPassword(e.target.value); }} required />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Mengubah Password...' : 'Ubah Password'}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={switchToLogin}>Kembali ke Login</button>
+              </form>
+            )
+          ) : (
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label><TemplateIcon name="users" size={14} style={{ marginRight: '6px' }} /> Username</label>
+              <label><TemplateIcon name="mail" size={14} style={{ marginRight: '6px' }} /> Email</label>
               <input
-                id="login-username"
-                type="text"
-                placeholder="Masukkan username"
-                value={username}
-                onChange={function (e) { setUsername(e.target.value); }}
+                id="login-email"
+                type="email"
+                placeholder="Masukkan email"
+                value={email}
+                onChange={function (e) { setEmail(e.target.value); }}
                 required
                 autoFocus
               />
@@ -80,6 +181,13 @@ function LoginPage({ onLogin }) {
               />
             </div>
             <button
+              type="button"
+              onClick={function () { setForgotMode(true); setError(''); }}
+              className="forgot-password-link"
+            >
+              Lupa Password?
+            </button>
+            <button
               id="login-submit"
               type="submit"
               className="btn btn-primary"
@@ -88,6 +196,7 @@ function LoginPage({ onLogin }) {
               {loading ? <><TemplateIcon name="loading" size={16} style={{ marginRight: '6px' }} /> Memproses...</> : <><TemplateIcon name="shield" size={16} style={{ marginRight: '6px' }} /> Masuk ke Dashboard</>}
             </button>
           </form>
+          )}
         </div>
       </div>
     </div>

@@ -20,6 +20,22 @@ var Otp = {
   },
 
   // Verifikasi OTP
+  checkOtp: function(email, otp, callback) {
+    var sql = `
+      SELECT * FROM customer_otp
+      WHERE email = ? AND otp = ?
+    `;
+    db.query(sql, [email, otp], function(err, results) {
+      if (err) return callback(err, null);
+      if (results.length === 0) return callback(null, null);
+
+      var expiresAt = new Date(results[0].expires_at);
+      if (expiresAt < new Date()) return callback(null, null);
+      callback(null, results[0]);
+    });
+  },
+
+  // Verifikasi OTP dan hapus setelah digunakan
   verifyOtp: function(email, otp, callback) {
     var sql = `
       SELECT * FROM customer_otp 
