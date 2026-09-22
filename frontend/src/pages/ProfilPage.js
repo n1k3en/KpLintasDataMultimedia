@@ -205,7 +205,7 @@ function ProfilPage() {
 
           <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {[
-              { icon: 'person', label: 'Username', value: admin ? admin.username : '-' },
+              { icon: 'mail', label: 'Email', value: admin ? admin.email : '-' },
               { icon: 'shield_person', label: 'Role', value: admin && admin.role === 'superadmin' ? 'Superadmin' : 'Administrator' },
               { icon: 'calendar_today', label: 'Bergabung', value: formatDate(admin ? admin.created_at : null) }
             ].map(function (item, idx) {
@@ -265,10 +265,10 @@ function ProfilPage() {
               </div>
               <div className="form-group">
                 <label style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
-                  Username
+                  Email
                 </label>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-muted)', border: '1.5px solid transparent', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {admin ? admin.username : '-'}
+                  {admin ? admin.email : '-'}
                   <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>lock</span>
                 </div>
               </div>

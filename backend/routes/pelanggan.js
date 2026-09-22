@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var bcrypt = require('bcryptjs');
 var Pelanggan = require('../models/Pelanggan');
 var verifyToken = require('../middleware/auth');
 
@@ -62,11 +63,15 @@ router.get('/:id', function(req, res) {
 
 /* POST /api/pelanggan - Tambah pelanggan baru */
 router.post('/', async function(req, res) {
-  var { nama, alamat, latitude, longitude, no_hp, email, pppoe_username, paket, due_date } = req.body;
+  var { nama, alamat, latitude, longitude, no_hp, email, password, pppoe_username, paket, due_date } = req.body;
   var MikrotikService = require('../services/mikrotik');
 
-  if (!nama || !no_hp) {
-    return res.status(400).json({ success: false, message: 'Nama dan nomor HP harus diisi.' });
+  if (!nama || !no_hp || !email || !password) {
+    return res.status(400).json({ success: false, message: 'Nama, nomor HP, email, dan password harus diisi.' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password minimal 6 karakter.' });
   }
 
   try {
@@ -110,6 +115,8 @@ router.post('/', async function(req, res) {
       }
     }
 
+    var passwordHash = await bcrypt.hash(password, 10);
+
     // 5. Buat pelanggan baru
     var result = await new Promise((resolve, reject) => {
       Pelanggan.create({
@@ -119,6 +126,7 @@ router.post('/', async function(req, res) {
         longitude: longitude,
         no_hp: no_hp,
         email: email ? email.trim().toLowerCase() : null,
+        password: passwordHash,
         pppoe_username: pppoe_username || '',
         paket: paket,
         due_date: due_date

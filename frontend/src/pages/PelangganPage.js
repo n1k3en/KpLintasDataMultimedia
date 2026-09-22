@@ -19,6 +19,7 @@ function PelangganPage({ socket }) {
     alamat: '',
     no_hp: '',
     email: '',
+    password: '',
     paket: '',
     pppoe_username: '',
     due_date: ''
@@ -97,7 +98,7 @@ function PelangganPage({ socket }) {
 
   function openAddModal() {
     setFormData({
-      nama: '', alamat: '', no_hp: '', email: '', paket: '', pppoe_username: '', due_date: ''
+      nama: '', alamat: '', no_hp: '', email: '', password: '', paket: '', pppoe_username: '', due_date: ''
     });
     setFormError('');
     setEditMode(false);
@@ -112,6 +113,7 @@ function PelangganPage({ socket }) {
       alamat: item.alamat || '',
       no_hp: item.no_hp || '',
       email: item.email || '',
+      password: '',
       paket: item.paket || '',
       pppoe_username: item.pppoe_username || '',
       due_date: item.due_date ? item.due_date.split('T')[0] : ''
@@ -133,8 +135,8 @@ function PelangganPage({ socket }) {
     if (e) e.preventDefault();
     setFormError('');
 
-    if (!formData.nama || !formData.no_hp) {
-      setFormError('Nama dan Nomor HP wajib diisi.');
+    if (!formData.nama || !formData.no_hp || !formData.email || (!editMode && !formData.password)) {
+      setFormError('Nama, nomor HP, email, dan password wajib diisi.');
       return;
     }
 
@@ -412,6 +414,20 @@ function PelangganPage({ socket }) {
               onChange={handleChange}
             />
           </div>
+          {!editMode && (
+            <div className="form-group">
+              <label>Password Pelanggan * (Min. 6 Karakter)</label>
+              <input
+                type="password"
+                name="password"
+                placeholder="Masukkan password login pelanggan"
+                value={formData.password}
+                onChange={handleChange}
+                minLength={6}
+                required
+              />
+            </div>
+          )}
           <div className="form-group">
             <label>Alamat Pemasangan WiFi</label>
             <textarea

@@ -1,24 +1,33 @@
 var db = require('../config/db');
 
 var Admin = {
-  // Cari admin berdasarkan username
-  findByUsername: function(username, callback) {
-    var sql = 'SELECT * FROM admin WHERE username = ?';
-    db.query(sql, [username], function(err, results) {
+  // Cari admin berdasarkan email
+  findByEmail: function(email, callback) {
+    var sql = 'SELECT * FROM admin WHERE email = ?';
+    db.query(sql, [email], function(err, results) {
       if (err) return callback(err, null);
       callback(null, results[0] || null);
     });
   },
 
+  // Update password admin berdasarkan email
+  updatePasswordByEmail: function(email, passwordHash, callback) {
+    var sql = 'UPDATE admin SET password_hash = ? WHERE email = ?';
+    db.query(sql, [passwordHash, email], function(err, result) {
+      if (err) return callback(err, null);
+      callback(null, result);
+    });
+  },
+
   // Buat admin baru
   create: function(data, callback) {
-    var sql = 'INSERT INTO admin (username, password_hash, nama, role, status) VALUES (?, ?, ?, ?, ?)';
+    var sql = 'INSERT INTO admin (password_hash, nama, role, status, email) VALUES (?, ?, ?, ?, ?)';
     var values = [
-      data.username,
       data.password_hash,
       data.nama,
       data.role || 'admin',
-      data.status || 'aktif'
+      data.status || 'aktif',
+      data.email
     ];
     db.query(sql, values, function(err, result) {
       if (err) return callback(err, null);
@@ -28,7 +37,7 @@ var Admin = {
 
   // Ambil semua akun admin
   getAll: function(callback) {
-    var sql = 'SELECT id_admin, username, nama, role, status, created_at, updated_at FROM admin ORDER BY id_admin ASC';
+    var sql = 'SELECT id_admin, nama, role, status, created_at, updated_at, email FROM admin ORDER BY id_admin ASC';
     db.query(sql, function(err, results) {
       if (err) return callback(err, null);
       callback(null, results);
@@ -55,7 +64,7 @@ var Admin = {
 
   // Cari admin berdasarkan ID
   findById: function(id, callback) {
-    var sql = 'SELECT id_admin, username, nama, role, status, created_at FROM admin WHERE id_admin = ?';
+    var sql = 'SELECT id_admin, nama, role, status, created_at, email FROM admin WHERE id_admin = ?';
     db.query(sql, [id], function(err, results) {
       if (err) return callback(err, null);
       callback(null, results[0] || null);

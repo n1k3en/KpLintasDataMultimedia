@@ -3,7 +3,98 @@ var router = express.Router();
 var bcrypt = require('bcryptjs');
 var jwt = require('jsonwebtoken');
 var Admin = require('../models/Admin');
+var Otp = require('../models/Otp');
+var EmailService = require('../services/emailService');
 var verifyToken = require('../middleware/auth');
+
+function normalizeEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : '';
+}
+
+function sendPasswordResetOtp(email, callback) {
+  Admin.findByEmail(email, async function(err, admin) {
+    if (err) return callback(err);
+    if (!admin) return callback(null, false);
+
+    var otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    Otp.createOtp(email, otpCode, async function(otpErr) {
+      if (otpErr) return callback(otpErr);
+      var sendResult = await EmailService.sendOtpEmail(email, {
+        nama: admin.nama,
+        otp: otpCode,
+        purpose: 'reset password'
+      });
+      callback(null, sendResult.success);
+    });
+  });
+}
+
+/* POST /api/auth/forgot-password/request-otp */
+router.post('/forgot-password/request-otp', function(req, res) {
+  var email = normalizeEmail(req.body.email);
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email wajib diisi.' });
+  }
+
+  sendPasswordResetOtp(email, function(err, sent) {
+    if (err) return res.status(500).json({ success: false, message: 'Gagal mengirim OTP.', error: err.message });
+    if (!sent) return res.status(404).json({ success: false, message: 'Email admin tidak terdaftar.' });
+    res.json({ success: true, message: 'OTP reset password telah dikirim ke email.' });
+  });
+});
+
+/* POST /api/auth/forgot-password/reset */
+router.post('/forgot-password/verify-otp', function(req, res) {
+  var email = normalizeEmail(req.body.email);
+  var otp = req.body.otp;
+  if (!email || !otp) return res.status(400).json({ success: false, message: 'Email dan OTP wajib diisi.' });
+
+  Admin.findByEmail(email, function(findErr, admin) {
+    if (findErr) return res.status(500).json({ success: false, message: 'Database error.' });
+    if (!admin) return res.status(404).json({ success: false, message: 'Email admin tidak terdaftar.' });
+    Otp.checkOtp(email, otp, function(otpErr, otpRecord) {
+      if (otpErr) return res.status(500).json({ success: false, message: 'Database error.' });
+      if (!otpRecord) return res.status(400).json({ success: false, message: 'OTP tidak valid atau sudah kedaluwarsa.' });
+      res.json({ success: true, message: 'OTP berhasil diverifikasi.' });
+    });
+  });
+});
+
+/* POST /api/auth/forgot-password/reset */
+router.post('/forgot-password/reset', function(req, res) {
+  var email = normalizeEmail(req.body.email);
+  var otp = req.body.otp;
+  var newPassword = req.body.newPassword;
+  var confirmPassword = req.body.confirmPassword;
+
+  if (!email || !otp || !newPassword || !confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Email, OTP, password baru, dan konfirmasi password wajib diisi.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ success: false, message: 'Password baru minimal 6 karakter.' });
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ success: false, message: 'Konfirmasi password tidak cocok.' });
+  }
+
+  Admin.findByEmail(email, function(findErr, admin) {
+    if (findErr) return res.status(500).json({ success: false, message: 'Database error.' });
+    if (!admin) return res.status(404).json({ success: false, message: 'Email admin tidak terdaftar.' });
+
+    Otp.verifyOtp(email, otp, function(otpErr, otpRecord) {
+      if (otpErr) return res.status(500).json({ success: false, message: 'Database error.' });
+      if (!otpRecord) return res.status(400).json({ success: false, message: 'OTP tidak valid atau sudah kedaluwarsa.' });
+
+      bcrypt.hash(newPassword, 10, function(hashErr, hash) {
+        if (hashErr) return res.status(500).json({ success: false, message: 'Gagal mengenkripsi password.' });
+        Admin.updatePasswordByEmail(email, hash, function(updateErr) {
+          if (updateErr) return res.status(500).json({ success: false, message: 'Gagal mengubah password.' });
+          res.json({ success: true, message: 'Password berhasil diubah. Silakan login kembali.' });
+        });
+      });
+    });
+  });
+});
 
 /* POST /api/auth/seed - Buat admin pertama kali */
 router.post('/seed', function(req, res) {
@@ -16,7 +107,7 @@ router.post('/seed', function(req, res) {
       return res.status(400).json({ success: false, message: 'Admin sudah ada. Seed hanya untuk pertama kali.' });
     }
 
-    var username = req.body.username || 'admin';
+    var email = req.body.email || null;
     var password = req.body.password || 'admin123';
     var nama = req.body.nama || 'Administrator';
 
@@ -26,9 +117,9 @@ router.post('/seed', function(req, res) {
       }
 
       Admin.create({
-        username: username,
         password_hash: hashedPassword,
-        nama: nama
+        nama: nama,
+        email: email
       }, function(createErr, admin) {
         if (createErr) {
           return res.status(500).json({ success: false, message: 'Gagal membuat admin', error: createErr.message });
@@ -37,7 +128,7 @@ router.post('/seed', function(req, res) {
         res.status(201).json({
           success: true,
           message: 'Admin berhasil dibuat! Silakan login.',
-          data: { username: username, nama: nama }
+          data: { email: email, nama: nama }
         });
       });
     });
@@ -46,19 +137,19 @@ router.post('/seed', function(req, res) {
 
 /* POST /api/auth/login - Admin login */
 router.post('/login', function(req, res) {
-  var { username, password } = req.body;
+  var { email, password } = req.body;
 
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: 'Username dan password harus diisi.' });
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Email dan password harus diisi.' });
   }
 
-  Admin.findByUsername(username, function(err, admin) {
+  Admin.findByEmail(email.trim().toLowerCase(), function(err, admin) {
     if (err) {
       return res.status(500).json({ success: false, message: 'Database error', error: err.message });
     }
 
     if (!admin) {
-      return res.status(401).json({ success: false, message: 'Username atau password salah.' });
+      return res.status(401).json({ success: false, message: 'Email atau password salah.' });
     }
 
     if (admin.status === 'nonaktif') {
@@ -71,12 +162,12 @@ router.post('/login', function(req, res) {
       }
 
       if (!isMatch) {
-        return res.status(401).json({ success: false, message: 'Username atau password salah.' });
+        return res.status(401).json({ success: false, message: 'Email atau password salah.' });
       }
 
       var userRole = admin.role || 'admin';
       var token = jwt.sign(
-        { id: admin.id_admin, username: admin.username, role: userRole },
+        { id: admin.id_admin, email: admin.email, role: userRole },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -88,7 +179,7 @@ router.post('/login', function(req, res) {
           token: token,
           admin: {
             id: admin.id_admin,
-            username: admin.username,
+            email: admin.email,
             nama: admin.nama,
             role: userRole,
             status: admin.status || 'aktif'

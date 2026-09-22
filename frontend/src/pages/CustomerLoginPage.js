@@ -8,8 +8,14 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
   var { userEmail } = useParams();
   var { logoUrl } = useLogo();
   var [email, setEmail] = useState(userEmail ? decodeURIComponent(userEmail) : '');
+  var [password, setPassword] = useState('');
   var [otp, setOtp] = useState('');
   var [step, setStep] = useState(1); // 1: input phone, 2: input OTP
+  var [forgotMode, setForgotMode] = useState(false);
+  var [forgotStep, setForgotStep] = useState(1);
+  var [forgotOtp, setForgotOtp] = useState('');
+  var [newPassword, setNewPassword] = useState('');
+  var [confirmPassword, setConfirmPassword] = useState('');
   var [error, setError] = useState('');
   var [successMsg, setSuccessMsg] = useState('');
   var [loading, setLoading] = useState(false);
@@ -35,7 +41,8 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
 
     try {
       var response = await axios.post(`${API_BASE_URL}/api/customer/auth/request-otp`, {
-        email: email
+        email: email,
+        password: password
       });
 
       if (response.data.success) {
@@ -71,6 +78,66 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function requestResetOtp(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/customer/auth/forgot-password/request-otp`, { email: email });
+      setForgotStep(2);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengirim OTP.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resetPassword(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/customer/auth/forgot-password/reset`, {
+        email: email,
+        otp: forgotOtp,
+        newPassword: newPassword,
+        confirmPassword: confirmPassword
+      });
+      setForgotMode(false);
+      setForgotStep(1);
+      setForgotOtp('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPassword('');
+      setSuccessMsg('Password berhasil diubah. Silakan login.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Gagal mengubah password.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function verifyResetOtp(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/api/customer/auth/forgot-password/verify-otp`, { email: email, otp: forgotOtp });
+      setForgotStep(3);
+    } catch (err) {
+      setError(err.response?.data?.message || 'OTP tidak valid atau sudah kedaluwarsa.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function switchToLogin() {
+    setForgotMode(false);
+    setForgotStep(1);
+    setError('');
+    setSuccessMsg('');
   }
 
   return (
@@ -161,7 +228,40 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
             </div>
           )}
 
-          {step === 1 ? (
+          {forgotMode ? (
+            forgotStep === 1 ? (
+              <form onSubmit={requestResetOtp}>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Email Pelanggan</label>
+                  <input type="email" placeholder="Contoh: user@email.com" value={email} onChange={function (e) { setEmail(e.target.value); }} required autoFocus style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }} />
+                </div>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 'var(--radius-md)', background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', fontWeight: 700 }}>{loading ? 'Mengirim OTP...' : 'Kirim OTP'}</button>
+                <button type="button" onClick={switchToLogin} style={{ width: '100%', marginTop: 10, padding: 12, border: '1px solid var(--md-outline-variant)', borderRadius: 'var(--radius-md)', background: 'var(--md-surface-container)', fontWeight: 600 }}>Kembali ke Login</button>
+              </form>
+            ) : forgotStep === 2 ? (
+              <form onSubmit={verifyResetOtp}>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Kode OTP</label>
+                  <input type="text" inputMode="numeric" maxLength="6" value={forgotOtp} onChange={function (e) { setForgotOtp(e.target.value); }} required autoFocus style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '1.2rem', textAlign: 'center', letterSpacing: 6, background: 'var(--md-surface-container-low)' }} />
+                </div>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 'var(--radius-md)', background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', fontWeight: 700 }}>{loading ? 'Memverifikasi OTP...' : 'Verifikasi OTP'}</button>
+                <button type="button" onClick={switchToLogin} style={{ width: '100%', marginTop: 10, padding: 12, border: '1px solid var(--md-outline-variant)', borderRadius: 'var(--radius-md)', background: 'var(--md-surface-container)', fontWeight: 600 }}>Kembali ke Login</button>
+              </form>
+            ) : (
+              <form onSubmit={resetPassword}>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Password Baru</label>
+                  <input type="password" minLength="6" value={newPassword} onChange={function (e) { setNewPassword(e.target.value); }} required style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }} />
+                </div>
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Verifikasi Password Baru</label>
+                  <input type="password" minLength="6" value={confirmPassword} onChange={function (e) { setConfirmPassword(e.target.value); }} required style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }} />
+                </div>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 'var(--radius-md)', background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', fontWeight: 700 }}>{loading ? 'Mengubah Password...' : 'Ubah Password'}</button>
+                <button type="button" onClick={switchToLogin} style={{ width: '100%', marginTop: 10, padding: 12, border: '1px solid var(--md-outline-variant)', borderRadius: 'var(--radius-md)', background: 'var(--md-surface-container)', fontWeight: 600 }}>Kembali ke Login</button>
+              </form>
+            )
+          ) : step === 1 ? (
             <form onSubmit={handleRequestOtp}>
               <div style={{ marginBottom: 20 }}>
                 <label style={{
@@ -190,6 +290,33 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
                   }}
                 />
               </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  color: 'var(--md-on-surface-variant)',
+                  marginBottom: 6,
+                  marginLeft: 4,
+                  display: 'block'
+                }}>Password</label>
+                <input
+                  type="password"
+                  placeholder="Masukkan password"
+                  value={password}
+                  onChange={function (e) { setPassword(e.target.value); }}
+                  required
+                  style={{
+                    width: '100%',
+                    background: 'var(--md-surface-container-low)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px 16px',
+                    fontSize: '0.95rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              <button type="button" className="forgot-password-link" onClick={function () { setForgotMode(true); setError(''); setSuccessMsg(''); }}>Lupa Password?</button>
               <button
                 type="submit"
                 disabled={loading}

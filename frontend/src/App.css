@@ -2123,3 +2123,22 @@
 .image-zoom-image:not(.zoomed) {
   cursor: zoom-in;
 }
+
+.forgot-password-link {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 10px;
+  color: var(--md-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.forgot-password-link:hover,
+.forgot-password-link:focus-visible {
+  text-decoration: underline;
+}

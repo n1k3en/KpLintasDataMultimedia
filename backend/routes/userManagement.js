@@ -21,10 +21,10 @@ router.get('/', function (req, res) {
 
 /* POST /api/users - Buat akun admin baru */
 router.post('/', function (req, res) {
-  var { username, password, nama, role } = req.body;
+  var { email, password, nama, role } = req.body;
 
-  if (!username || !password || !nama) {
-    return res.status(400).json({ success: false, message: 'Username, password, dan nama wajib diisi.' });
+  if (!email || !password || !nama) {
+    return res.status(400).json({ success: false, message: 'Nama, email, dan password wajib diisi.' });
   }
 
   if (password.length < 6) {
@@ -32,16 +32,16 @@ router.post('/', function (req, res) {
   }
 
   var finalRole = role === 'superadmin' ? 'superadmin' : 'admin';
-  var cleanUsername = username.trim().toLowerCase();
+  var cleanEmail = email.trim().toLowerCase();
 
-  Admin.findByUsername(cleanUsername, function (err, existing) {
-    if (err) {
-      return res.status(500).json({ success: false, message: 'Database error', error: err.message });
-    }
+  Admin.findByEmail(cleanEmail, function (emailErr, existingEmail) {
+      if (emailErr) {
+        return res.status(500).json({ success: false, message: 'Database error', error: emailErr.message });
+      }
 
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'Username sudah digunakan. Silakan pilih username lain.' });
-    }
+      if (existingEmail) {
+        return res.status(400).json({ success: false, message: 'Email sudah digunakan. Silakan gunakan email lain.' });
+      }
 
     bcrypt.hash(password, 10, function (hashErr, hashedPassword) {
       if (hashErr) {
@@ -49,11 +49,11 @@ router.post('/', function (req, res) {
       }
 
       Admin.create({
-        username: cleanUsername,
         password_hash: hashedPassword,
         nama: nama.trim(),
         role: finalRole,
-        status: 'aktif'
+        status: 'aktif',
+        email: cleanEmail
       }, function (createErr, result) {
         if (createErr) {
           return res.status(500).json({ success: false, message: 'Gagal membuat admin baru', error: createErr.message });
@@ -64,7 +64,7 @@ router.post('/', function (req, res) {
           message: 'Akun ' + (finalRole === 'superadmin' ? 'Super Admin' : 'Admin') + ' berhasil dibuat!',
           data: {
             id_admin: result.id_admin,
-            username: cleanUsername,
+            email: cleanEmail,
             nama: nama.trim(),
             role: finalRole,
             status: 'aktif'
@@ -110,33 +110,6 @@ router.put('/:id', function (req, res) {
           success: true,
           message: 'Akun admin berhasil diperbarui!'
         });
-      });
-    });
-  });
-});
-
-/* PUT /api/users/:id/reset-password - Reset password akun admin */
-router.put('/:id/reset-password', function (req, res) {
-  var targetId = parseInt(req.params.id, 10);
-  var { newPassword } = req.body;
-
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ success: false, message: 'Password baru wajib diisi dan minimal 6 karakter.' });
-  }
-
-  bcrypt.hash(newPassword, 10, function (hashErr, hashedPassword) {
-    if (hashErr) {
-      return res.status(500).json({ success: false, message: 'Gagal mengenkripsi password baru.' });
-    }
-
-    Admin.updatePassword(targetId, hashedPassword, function (updateErr) {
-      if (updateErr) {
-        return res.status(500).json({ success: false, message: 'Gagal mereset password', error: updateErr.message });
-      }
-
-      res.json({
-        success: true,
-        message: 'Password akun berhasil direset!'
       });
     });
   });
