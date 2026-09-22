@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import Modal from '../components/Modal';
+import TemplateIcon from '../components/TemplateIcon';
 import { API_BASE_URL } from '../config';
 
 function KelolaAdminPage({ admin: currentAdmin }) {
@@ -14,6 +15,7 @@ function KelolaAdminPage({ admin: currentAdmin }) {
   var [formNama, setFormNama] = useState('');
   var [formEmail, setFormEmail] = useState('');
   var [formPassword, setFormPassword] = useState('');
+  var [showFormPassword, setShowFormPassword] = useState(false);
   var [formRole, setFormRole] = useState('admin');
   var [submitting, setSubmitting] = useState(false);
   var [formError, setFormError] = useState('');
@@ -405,15 +407,37 @@ function KelolaAdminPage({ admin: currentAdmin }) {
 
           <div className="form-group" style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px' }}>Password * (Min. 6 Karakter)</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={formPassword}
-              onChange={function (e) { setFormPassword(e.target.value); }}
-              required
-              minLength={6}
-              style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-color)', fontSize: '0.9rem', outline: 'none' }}
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showFormPassword ? "text" : "password"}
+                placeholder="••••••••"
+                value={formPassword}
+                onChange={function (e) { setFormPassword(e.target.value); }}
+                required
+                minLength={6}
+                style={{ width: '100%', padding: '10px 40px 10px 14px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-color)', fontSize: '0.9rem', outline: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={function () { setShowFormPassword(!showFormPassword); }}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: showFormPassword ? 'var(--primary, #006876)' : 'var(--text-muted, #888)'
+                }}
+                title={showFormPassword ? "Sembunyikan password" : "Lihat password"}
+                aria-label={showFormPassword ? "Sembunyikan password" : "Lihat password"}
+              >
+                <TemplateIcon name={showFormPassword ? "eye-off" : "eye"} size={18} />
+              </button>
+            </div>
           </div>
 
           <div className="form-group" style={{ marginBottom: '20px' }}>

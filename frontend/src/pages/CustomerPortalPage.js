@@ -42,30 +42,53 @@ function CustomerPortalPage({ onLogout }) {
   var [profileOpen, setProfileOpen] = useState(false);
   var dropdownRef = useRef(null);
 
+  // Dynamic QRIS and bank accounts state
+  var [qrisUrl, setQrisUrl] = useState(`${API_BASE_URL}/images/qris.png`);
+  var [bankAccounts, setBankAccounts] = useState([]);
+  var [manualModalOpen, setManualModalOpen] = useState(false);
+  var [copiedRekening, setCopiedRekening] = useState(false);
+
+  function getBankLogo(namaBank) {
+    var lower = (namaBank || '').toLowerCase();
+    if (lower.includes('bca')) return process.env.PUBLIC_URL + '/BCA.png';
+    if (lower.includes('bri')) return process.env.PUBLIC_URL + '/BRI.jpg';
+    if (lower.includes('mandiri')) return process.env.PUBLIC_URL + '/MANDIRI.png';
+    return null;
+  }
+
   var token = localStorage.getItem('customer_token');
   var headers = { Authorization: 'Bearer ' + token };
 
   // Payment method options with logos
+  var dynamicBankOptions = bankAccounts.map(function (acc) {
+    return {
+      value: 'bank_' + acc.id,
+      label: 'Manual: ' + acc.nama_bank,
+      sublabel: 'Transfer Bank / E-Wallet',
+      icon: getBankLogo(acc.nama_bank) ? null : 'account_balance',
+      logo: getBankLogo(acc.nama_bank),
+      accountData: acc
+    };
+  });
+
   var paymentOptions = [
     { value: 'midtrans', label: 'Bayar Online Instan - Midtrans (QRIS, E-Wallet, VA)', sublabel: 'Otomatis via Midtrans', icon: 'payments', logo: null },
     { value: 'duitku', label: 'Bayar Online Instan - Duitku (QRIS, VA, E-Wallet, Retail)', sublabel: 'Otomatis via Duitku', icon: 'account_balance_wallet', logo: null },
     { value: 'qris', label: 'Manual: QRIS', sublabel: 'Scan & Transfer', icon: 'qr_code_2', logo: null },
-    { value: 'bri', label: 'Manual: Bank BRI', sublabel: 'Transfer Bank', icon: null, logo: process.env.PUBLIC_URL + '/BRI.jpg' },
-    { value: 'mandiri', label: 'Manual: Bank Mandiri', sublabel: 'Transfer Bank', icon: null, logo: process.env.PUBLIC_URL + '/MANDIRI.png' },
-    { value: 'bca', label: 'Manual: Bank BCA', sublabel: 'Transfer Bank', icon: null, logo: process.env.PUBLIC_URL + '/BCA.png' }
+    ...dynamicBankOptions
   ].filter(function (option) {
-    var manualMethods = ['qris', 'bri', 'mandiri', 'bca'];
+    var isManual = option.value === 'qris' || option.value.startsWith('bank_');
     var gatewayVisible = ['midtrans', 'duitku'].indexOf(option.value) === -1 || option.value === activePaymentGateway;
-    return gatewayVisible && (manualPaymentEnabled || manualMethods.indexOf(option.value) === -1);
+    return gatewayVisible && (manualPaymentEnabled || !isManual);
   });
   var singlePaymentMethod = paymentOptions.length === 1 ? paymentOptions[0].value : null;
 
   useEffect(function () {
-    var manualMethods = ['qris', 'bri', 'mandiri', 'bca'];
+    var isManual = paymentMethod === 'qris' || paymentMethod.startsWith('bank_');
     if (singlePaymentMethod && paymentMethod !== singlePaymentMethod) {
       setPaymentMethod(singlePaymentMethod);
       setDropdownOpen(false);
-    } else if (!manualPaymentEnabled && manualMethods.indexOf(paymentMethod) !== -1) {
+    } else if (!manualPaymentEnabled && isManual) {
       setPaymentMethod(activePaymentGateway !== 'none' ? activePaymentGateway : 'qris');
     } else if (['midtrans', 'duitku'].indexOf(paymentMethod) !== -1 && paymentMethod !== activePaymentGateway) {
       setPaymentMethod(activePaymentGateway !== 'none' ? activePaymentGateway : (manualPaymentEnabled ? 'qris' : 'midtrans'));
@@ -88,8 +111,26 @@ function CustomerPortalPage({ onLogout }) {
   useEffect(function () {
     fetchBilling();
     fetchMidtransConfig();
+    fetchManualPaymentConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function fetchManualPaymentConfig() {
+    try {
+      var [qrisRes, rekRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/pengaturan/qris`),
+        axios.get(`${API_BASE_URL}/api/pengaturan/rekening?active_only=true`)
+      ]);
+      if (qrisRes.data.success && qrisRes.data.data?.qris_url) {
+        setQrisUrl(`${API_BASE_URL}${qrisRes.data.data.qris_url}`);
+      }
+      if (rekRes.data.success && rekRes.data.data) {
+        setBankAccounts(rekRes.data.data);
+      }
+    } catch (err) {
+      console.error('Gagal memuat info pembayaran manual:', err);
+    }
+  }
 
   async function fetchProfile() {
     setLoadingProfile(true);
@@ -118,6 +159,56 @@ function CustomerPortalPage({ onLogout }) {
       setLoadingHistory(false);
     }
   }
+
+  var [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  var [clearingHistory, setClearingHistory] = useState(false);
+
+  async function handleDeletePayment(idPembayaran) {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus catatan riwayat pembayaran ini dari portal Anda?')) {
+      return;
+    }
+    setDeletingPaymentId(idPembayaran);
+    try {
+      var response = await axios.delete(`${API_BASE_URL}/api/customer/portal/payments/${idPembayaran}`, { headers: headers });
+      if (response.data.success) {
+        setPaymentHistory(function (prev) {
+          return prev.filter(function (p) { return p.id_pembayaran !== idPembayaran; });
+        });
+        setMessage({ type: 'success', text: 'Riwayat pembayaran berhasil dihapus.' });
+        setTimeout(function () { setMessage({ type: '', text: '' }); }, 4000);
+      } else {
+        alert(response.data.message || 'Gagal menghapus riwayat pembayaran.');
+      }
+    } catch (err) {
+      console.error('Gagal menghapus riwayat pembayaran:', err);
+      alert(err.response?.data?.message || 'Terjadi kesalahan saat menghapus riwayat pembayaran.');
+    } finally {
+      setDeletingPaymentId(null);
+    }
+  }
+
+  async function handleClearAllPayments() {
+    if (!window.confirm('Apakah Anda yakin ingin menghapus SEMUA catatan riwayat pembayaran Anda? Catatan yang dihapus tidak dapat dipulihkan.')) {
+      return;
+    }
+    setClearingHistory(true);
+    try {
+      var response = await axios.delete(`${API_BASE_URL}/api/customer/portal/payments`, { headers: headers });
+      if (response.data.success) {
+        setPaymentHistory([]);
+        setMessage({ type: 'success', text: 'Semua riwayat pembayaran berhasil dibersihkan.' });
+        setTimeout(function () { setMessage({ type: '', text: '' }); }, 4000);
+      } else {
+        alert(response.data.message || 'Gagal membersihkan riwayat pembayaran.');
+      }
+    } catch (err) {
+      console.error('Gagal membersihkan riwayat pembayaran:', err);
+      alert(err.response?.data?.message || 'Terjadi kesalahan saat membersihkan riwayat pembayaran.');
+    } finally {
+      setClearingHistory(false);
+    }
+  }
+
 
   useEffect(function () {
     if (activeTab === 'profile') {
@@ -450,6 +541,9 @@ function CustomerPortalPage({ onLogout }) {
   function handleSelectOption(value) {
     setPaymentMethod(value);
     setDropdownOpen(false);
+    if (value === 'qris' || value.startsWith('bank_')) {
+      setManualModalOpen(true);
+    }
   }
 
   // Styles (only basic inline overrides, most styles moved to injected CSS classes)
@@ -557,48 +651,135 @@ function CustomerPortalPage({ onLogout }) {
         );
       case 'qris':
         return (
-          <div style={{ ...S.infoBox, textAlign: 'center' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 12 }}>Scan Kode QRIS di bawah:</div>
-            <div style={{ display: 'inline-block', padding: 10, background: 'white', borderRadius: 'var(--radius-md)', marginBottom: 8 }}>
-              <img src={`${API_BASE_URL}/images/qris.png`} alt="QRIS" style={{ width: 180, height: 180, display: 'block', objectFit: 'contain' }} />
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 18px',
+            background: 'var(--md-surface-container-low)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--md-outline-variant)',
+            marginTop: 12,
+            gap: 12,
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--md-primary)' }}>qr_code_2</span>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--md-on-surface)' }}>Kode QRIS Siap di-Scan</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--md-on-surface-variant)' }}>Bisa menggunakan semua aplikasi m-Banking & E-Wallet</div>
+              </div>
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--md-outline)' }}>Support semua bank & e-wallet</div>
-          </div>
-        );
-      case 'bri':
-        return (
-          <div style={S.infoBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-              <img src={process.env.PUBLIC_URL + '/BRI.jpg'} alt="Bank BRI" style={{ height: 32, objectFit: 'contain' }} />
-              <div style={{ fontSize: '0.78rem', color: 'var(--md-outline)', textTransform: 'uppercase', fontWeight: 600 }}>Transfer Bank BRI</div>
-            </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, margin: '4px 0', color: 'var(--md-primary)' }}>0346-01-001962-50-8</div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--md-on-surface-variant)' }}>a/n ESP Lintas Data Multimedia</div>
-          </div>
-        );
-      case 'mandiri':
-        return (
-          <div style={S.infoBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-              <img src={process.env.PUBLIC_URL + '/MANDIRI.png'} alt="Bank Mandiri" style={{ height: 32, objectFit: 'contain' }} />
-              <div style={{ fontSize: '0.78rem', color: 'var(--md-outline)', textTransform: 'uppercase', fontWeight: 600 }}>Transfer Bank Mandiri</div>
-            </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, margin: '4px 0', color: 'var(--md-primary)' }}>131-00-1572912-3</div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--md-on-surface-variant)' }}>a/n ESP Lintas Data Multimedia</div>
-          </div>
-        );
-      case 'bca':
-        return (
-          <div style={S.infoBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-              <img src={process.env.PUBLIC_URL + '/BCA.png'} alt="Bank BCA" style={{ height: 32, objectFit: 'contain' }} />
-              <div style={{ fontSize: '0.78rem', color: 'var(--md-outline)', textTransform: 'uppercase', fontWeight: 600 }}>Transfer Bank BCA</div>
-            </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, margin: '4px 0', color: 'var(--md-primary)' }}>869-0577-888</div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--md-on-surface-variant)' }}>a/n ESP Lintas Data Multimedia</div>
+            <button
+              type="button"
+              onClick={function () { setManualModalOpen(true); }}
+              style={{
+                padding: '9px 18px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--md-primary)',
+                color: 'white',
+                border: 'none',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>fullscreen</span>
+              Buka Pop-up QRIS
+            </button>
           </div>
         );
       default:
+        if (paymentMethod && paymentMethod.startsWith('bank_')) {
+          var accId = parseInt(paymentMethod.replace('bank_', ''), 10);
+          var acc = bankAccounts.find(function (a) { return a.id === accId; });
+          if (acc) {
+            var bankLogo = getBankLogo(acc.nama_bank);
+            return (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '14px 18px',
+                background: 'var(--md-surface-container-low)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--md-outline-variant)',
+                marginTop: 12,
+                gap: 12,
+                flexWrap: 'wrap'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {bankLogo ? (
+                    <img src={bankLogo} alt={acc.nama_bank} style={{ height: 28, objectFit: 'contain' }} />
+                  ) : (
+                    <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--md-primary)' }}>account_balance</span>
+                  )}
+                  <div>
+                    <div style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--md-primary)' }}>
+                      {acc.nomor_rekening}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--md-on-surface-variant)' }}>
+                      {acc.nama_bank} &bull; a/n {acc.atas_nama}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={function () {
+                      navigator.clipboard.writeText(acc.nomor_rekening);
+                      setCopiedRekening(acc.id);
+                      setTimeout(function () { setCopiedRekening(false); }, 2000);
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'transparent',
+                      color: 'var(--md-primary)',
+                      border: '1px solid var(--md-primary)',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                      {copiedRekening === acc.id ? 'check' : 'content_copy'}
+                    </span>
+                    {copiedRekening === acc.id ? 'Tersalin!' : 'Salin'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={function () { setManualModalOpen(true); }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 'var(--radius-md)',
+                      background: 'var(--md-primary)',
+                      color: 'white',
+                      border: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>info</span>
+                    Petunjuk
+                  </button>
+                </div>
+              </div>
+            );
+          }
+        }
         return null;
     }
   }
@@ -846,6 +1027,45 @@ function CustomerPortalPage({ onLogout }) {
 
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+            padding: '4px 2px'
+          }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--md-on-surface-variant)', fontWeight: 600 }}>
+              Menampilkan {paymentHistory.length} catatan riwayat pembayaran
+            </span>
+            <button
+              type="button"
+              onClick={handleClearAllPayments}
+              disabled={clearingHistory}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#dc2626',
+                background: '#fff1f2',
+                border: '1px solid rgba(220, 38, 38, 0.25)',
+                padding: '8px 16px',
+                borderRadius: 'var(--radius-md)',
+                cursor: clearingHistory ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 1px 3px rgba(220, 38, 38, 0.08)'
+              }}
+              onMouseEnter={function (e) { e.currentTarget.style.background = '#ffe4e6'; }}
+              onMouseLeave={function (e) { e.currentTarget.style.background = '#fff1f2'; }}
+              title="Hapus semua riwayat pembayaran dari portal Anda"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete_sweep</span>
+              {clearingHistory ? 'Membersihkan...' : 'Hapus Semua Riwayat'}
+            </button>
+          </div>
+
           {paymentHistory.map(function (pay) {
             var isOnline = pay.bukti_file.startsWith('Midtrans') || pay.bukti_file.startsWith('Duitku');
             var paymentUrl = isOnline ? '#' : `${API_BASE_URL}${pay.bukti_file}`;
@@ -892,7 +1112,7 @@ function CustomerPortalPage({ onLogout }) {
 
             return (
               <div key={pay.id_pembayaran} className="portal-card" style={{ padding: 24, marginBottom: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div style={{ display: 'flex', borderBottom: 'none', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                   <div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--md-on-surface-variant)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Periode Tagihan {pay.periode}</div>
                     <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--md-primary)', margin: '6px 0', letterSpacing: '-0.5px' }}>
@@ -911,20 +1131,57 @@ function CustomerPortalPage({ onLogout }) {
                   </div>
                 )}
 
-                <div style={{ marginTop: 20, display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--md-outline-variant)', paddingTop: 16 }}>
-                  {isOnline ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: 'var(--status-hijau)', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span> {onlineLabel}
-                    </div>
-                  ) : (
-                    <a href={paymentUrl} target="_blank" rel="noopener noreferrer" style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', fontWeight: 700,
-                      color: 'var(--md-primary)', textDecoration: 'none', padding: '8px 16px', background: 'var(--md-primary-fixed)',
-                      borderRadius: 'var(--radius-md)', transition: 'all 0.2s ease'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: 16 }}>visibility</span> Lihat Bukti Transfer
-                    </a>
-                  )}
+                <div style={{
+                  marginTop: 20,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '1px solid var(--md-outline-variant)',
+                  paddingTop: 16,
+                  flexWrap: 'wrap',
+                  gap: 12
+                }}>
+                  <div>
+                    {isOnline ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', color: 'var(--status-hijau)', fontWeight: 700 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>bolt</span> {onlineLabel}
+                      </div>
+                    ) : (
+                      <a href={paymentUrl} target="_blank" rel="noopener noreferrer" style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', fontWeight: 700,
+                        color: 'var(--md-primary)', textDecoration: 'none', padding: '8px 16px', background: 'var(--md-primary-fixed)',
+                        borderRadius: 'var(--radius-md)', transition: 'all 0.2s ease'
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>visibility</span> Lihat Bukti Transfer
+                      </a>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={function () { handleDeletePayment(pay.id_pembayaran); }}
+                    disabled={deletingPaymentId === pay.id_pembayaran}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#dc2626',
+                      background: 'rgba(220, 38, 38, 0.05)',
+                      border: '1px solid rgba(220, 38, 38, 0.2)',
+                      padding: '7px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      cursor: deletingPaymentId === pay.id_pembayaran ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={function (e) { e.currentTarget.style.background = 'rgba(220, 38, 38, 0.12)'; }}
+                    onMouseLeave={function (e) { e.currentTarget.style.background = 'rgba(220, 38, 38, 0.05)'; }}
+                    title="Hapus riwayat pembayaran ini"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                    {deletingPaymentId === pay.id_pembayaran ? 'Menghapus...' : 'Hapus'}
+                  </button>
                 </div>
               </div>
             );
@@ -1762,6 +2019,291 @@ function CustomerPortalPage({ onLogout }) {
           {renderTabContent()}
         </div>
       </main>
+
+      {/* Manual Payment Pop-up Modal (QRIS & Bank Transfer) */}
+      {manualModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--md-surface-container-lowest, #ffffff)',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+            overflow: 'hidden',
+            border: '1px solid var(--md-outline-variant)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--md-outline-variant)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'var(--md-surface-container-low)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {paymentMethod === 'qris' ? (
+                  <span className="material-symbols-outlined" style={{ fontSize: 24, color: 'var(--md-primary)' }}>qr_code_2</span>
+                ) : (
+                  <span className="material-symbols-outlined" style={{ fontSize: 24, color: 'var(--md-primary)' }}>account_balance</span>
+                )}
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 800, color: 'var(--md-on-surface)' }}>
+                    {paymentMethod === 'qris' ? 'Pembayaran via QRIS' : 'Transfer Bank Pembayaran'}
+                  </h4>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--md-on-surface-variant)' }}>
+                    {paymentMethod === 'qris' ? 'Scan dengan m-Banking / E-Wallet' : 'Nomor rekening resmi ISP Lintas Data'}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={function () { setManualModalOpen(false); }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1.4rem',
+                  color: 'var(--md-on-surface-variant)',
+                  lineHeight: 1,
+                  padding: 4
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px', maxHeight: '75vh', overflowY: 'auto' }}>
+              {/* Total Tagihan Card */}
+              <div style={{
+                background: 'rgba(0, 104, 118, 0.06)',
+                border: '1px solid rgba(0, 104, 118, 0.15)',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 18
+              }}>
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--md-outline)', textTransform: 'uppercase', fontWeight: 700 }}>Total Tagihan ({billing ? billing.periode : ''})</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--md-primary)' }}>
+                    Rp {billing ? Number(billing.nominal).toLocaleString('id-ID') : '0'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={function () {
+                    navigator.clipboard.writeText(String(billing ? billing.nominal : '0'));
+                    setCopiedTip('nominal');
+                    setTimeout(function () { setCopiedTip(''); }, 2000);
+                  }}
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '5px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--md-primary)',
+                    background: 'transparent',
+                    color: 'var(--md-primary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                    {copiedTip === 'nominal' ? 'check' : 'content_copy'}
+                  </span>
+                  {copiedTip === 'nominal' ? 'Tersalin' : 'Salin'}
+                </button>
+              </div>
+
+              {/* QRIS Content */}
+              {paymentMethod === 'qris' && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    display: 'inline-block',
+                    padding: 14,
+                    background: '#ffffff',
+                    borderRadius: '12px',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                    border: '1px solid var(--md-outline-variant)',
+                    marginBottom: 14
+                  }}>
+                    <img
+                      src={qrisUrl}
+                      alt="QRIS Code"
+                      style={{ width: 230, height: 230, display: 'block', objectFit: 'contain', margin: '0 auto' }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--md-on-surface)', marginBottom: 4 }}>
+                    Scan QRIS di atas untuk membayar
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
+                    Mendukung BCA Mobile, Mandiri Livin, BRImo, BNI Mobile, GoPay, OVO, Dana, LinkAja, ShopeePay, dan semua aplikasi perbankan berstandar QRIS.
+                  </div>
+
+                  <div style={{
+                    background: 'var(--md-surface-container-low)',
+                    borderRadius: '8px',
+                    padding: '12px 14px',
+                    textAlign: 'left',
+                    fontSize: '0.75rem',
+                    color: 'var(--md-on-surface-variant)',
+                    lineHeight: 1.5,
+                    border: '1px solid var(--md-outline-variant)'
+                  }}>
+                    <strong style={{ color: 'var(--md-on-surface)', display: 'block', marginBottom: 4 }}>Petunjuk Pembayaran:</strong>
+                    1. Buka aplikasi m-Banking atau E-Wallet pilihan Anda.<br />
+                    2. Pilih menu <strong>Scan / Bayar QRIS</strong> dan arahkan kamera ke kode di atas.<br />
+                    3. Periksa nama penerima (<strong>PT Lintas Data Multimedia</strong>) dan pastikan nominal sesuai.<br />
+                    4. Konfirmasi pembayaran dan simpan bukti transfer untuk diunggah di portal ini.
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Transfer Content */}
+              {paymentMethod && paymentMethod.startsWith('bank_') && (function () {
+                var accId = parseInt(paymentMethod.replace('bank_', ''), 10);
+                var acc = bankAccounts.find(function (a) { return a.id === accId; });
+                if (!acc) return null;
+                var bankLogo = getBankLogo(acc.nama_bank);
+
+                return (
+                  <div>
+                    <div style={{
+                      background: 'var(--md-surface-container-low)',
+                      border: '1px solid var(--md-outline-variant)',
+                      borderRadius: '12px',
+                      padding: '18px',
+                      textAlign: 'center',
+                      marginBottom: 16
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 }}>
+                        {bankLogo ? (
+                          <img src={bankLogo} alt={acc.nama_bank} style={{ height: 32, objectFit: 'contain' }} />
+                        ) : (
+                          <span className="material-symbols-outlined" style={{ fontSize: 32, color: 'var(--md-primary)' }}>account_balance</span>
+                        )}
+                        <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--md-on-surface)' }}>
+                          {acc.nama_bank}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: '0.75rem', color: 'var(--md-outline)', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
+                        Nomor Rekening Tujuan
+                      </div>
+                      <div style={{
+                        fontSize: '1.45rem',
+                        fontWeight: 800,
+                        letterSpacing: '1px',
+                        color: 'var(--md-primary)',
+                        marginBottom: 6,
+                        userSelect: 'all'
+                      }}>
+                        {acc.nomor_rekening}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--md-on-surface)', fontWeight: 600, marginBottom: 14 }}>
+                        a/n {acc.atas_nama}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={function () {
+                          navigator.clipboard.writeText(acc.nomor_rekening);
+                          setCopiedRekening(acc.id);
+                          setTimeout(function () { setCopiedRekening(false); }, 2000);
+                        }}
+                        style={{
+                          padding: '8px 18px',
+                          borderRadius: '8px',
+                          background: copiedRekening === acc.id ? 'var(--status-hijau)' : 'var(--md-primary)',
+                          color: 'white',
+                          border: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                          {copiedRekening === acc.id ? 'check' : 'content_copy'}
+                        </span>
+                        {copiedRekening === acc.id ? 'Nomor Rekening Tersalin!' : 'Salin Nomor Rekening'}
+                      </button>
+                    </div>
+
+                    <div style={{
+                      background: 'var(--md-surface-container-low)',
+                      borderRadius: '8px',
+                      padding: '12px 14px',
+                      fontSize: '0.75rem',
+                      color: 'var(--md-on-surface-variant)',
+                      lineHeight: 1.5,
+                      border: '1px solid var(--md-outline-variant)'
+                    }}>
+                      <strong style={{ color: 'var(--md-on-surface)', display: 'block', marginBottom: 4 }}>Petunjuk Transfer:</strong>
+                      1. Buka aplikasi m-Banking, i-Banking, atau kunjungi ATM {acc.nama_bank}.<br />
+                      2. Masukkan nomor rekening di atas dan nominal sesuai total tagihan.<br />
+                      3. Pastikan nama penerima <strong>{acc.atas_nama}</strong>.<br />
+                      4. Simpan bukti transfer (struk/screenshot), lalu unggah pada form di bawah.
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '14px 20px',
+              borderTop: '1px solid var(--md-outline-variant)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              background: 'var(--md-surface-container-low)'
+            }}>
+              <button
+                type="button"
+                onClick={function () { setManualModalOpen(false); }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--md-primary)',
+                  color: 'white',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.84rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>check</span>
+                Mengerti & Upload Bukti
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

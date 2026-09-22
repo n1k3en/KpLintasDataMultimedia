@@ -278,6 +278,22 @@ function TemplateIcon({ name, size = 18, color = 'currentColor', strokeWidth = 1
                     <path d="M8.5 8.5c.3-.4.7-.4 1-.1l1.1 1.3c.2.2.2.5.1.8l-.5.8c.6 1.2 1.5 2.1 2.7 2.7l.8-.5c.3-.2.6-.1.8.1l1.3 1.1c.3.3.3.7-.1 1-.5.5-1.2.7-1.8.5a8 8 0 0 1-5.8-5.8c-.2-.6 0-1.3.4-1.9Z" />
                 </svg>
             );
+        case 'eye':
+            return (
+                <svg {...commonProps}>
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+            );
+        case 'eye-off':
+            return (
+                <svg {...commonProps}>
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                    <line x1="2" x2="22" y1="2" y2="22" />
+                </svg>
+            );
         default:
             return null;
     }

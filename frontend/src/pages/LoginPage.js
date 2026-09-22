@@ -9,6 +9,9 @@ function LoginPage({ onLogin }) {
   var { logoUrl } = useLogo();
   var [email, setEmail] = useState('');
   var [password, setPassword] = useState('');
+  var [showPassword, setShowPassword] = useState(false);
+  var [showNewPassword, setShowNewPassword] = useState(false);
+  var [showConfirmPassword, setShowConfirmPassword] = useState(false);
   var [forgotMode, setForgotMode] = useState(false);
   var [forgotStep, setForgotStep] = useState(1);
   var [forgotOtp, setForgotOtp] = useState('');
@@ -143,11 +146,71 @@ function LoginPage({ onLogin }) {
               <form className="login-form" onSubmit={resetPassword}>
                 <div className="form-group">
                   <label>Password Baru</label>
-                  <input type="password" minLength="6" value={newPassword} onChange={function (e) { setNewPassword(e.target.value); }} required />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      minLength="6"
+                      value={newPassword}
+                      onChange={function (e) { setNewPassword(e.target.value); }}
+                      required
+                      style={{ width: '100%', paddingRight: '42px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={function () { setShowNewPassword(!showNewPassword); }}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: showNewPassword ? 'var(--primary, #006876)' : 'var(--text-muted, #94a3b8)',
+                        transition: 'color 0.2s ease'
+                      }}
+                      title={showNewPassword ? "Sembunyikan password" : "Lihat password"}
+                      aria-label={showNewPassword ? "Sembunyikan password" : "Lihat password"}
+                    >
+                      <TemplateIcon name={showNewPassword ? "eye-off" : "eye"} size={18} />
+                    </button>
+                  </div>
                 </div>
                 <div className="form-group">
                   <label>Verifikasi Password Baru</label>
-                  <input type="password" minLength="6" value={confirmPassword} onChange={function (e) { setConfirmPassword(e.target.value); }} required />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      minLength="6"
+                      value={confirmPassword}
+                      onChange={function (e) { setConfirmPassword(e.target.value); }}
+                      required
+                      style={{ width: '100%', paddingRight: '42px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={function () { setShowConfirmPassword(!showConfirmPassword); }}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: showConfirmPassword ? 'var(--primary, #006876)' : 'var(--text-muted, #94a3b8)',
+                        transition: 'color 0.2s ease'
+                      }}
+                      title={showConfirmPassword ? "Sembunyikan password" : "Lihat password"}
+                      aria-label={showConfirmPassword ? "Sembunyikan password" : "Lihat password"}
+                    >
+                      <TemplateIcon name={showConfirmPassword ? "eye-off" : "eye"} size={18} />
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
                   {loading ? 'Mengubah Password...' : 'Ubah Password'}
@@ -171,14 +234,38 @@ function LoginPage({ onLogin }) {
             </div>
             <div className="form-group">
               <label><TemplateIcon name="lock" size={14} style={{ marginRight: '6px' }} /> Password</label>
-              <input
-                id="login-password"
-                type="password"
-                placeholder="Masukkan password"
-                value={password}
-                onChange={function (e) { setPassword(e.target.value); }}
-                required
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Masukkan password"
+                  value={password}
+                  onChange={function (e) { setPassword(e.target.value); }}
+                  required
+                  style={{ width: '100%', paddingRight: '42px' }}
+                />
+                <button
+                  type="button"
+                  onClick={function () { setShowPassword(!showPassword); }}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: showPassword ? 'var(--primary, #006876)' : 'var(--text-muted, #94a3b8)',
+                    transition: 'color 0.2s ease'
+                  }}
+                  title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  <TemplateIcon name={showPassword ? "eye-off" : "eye"} size={18} />
+                </button>
+              </div>
             </div>
             <button
               type="button"

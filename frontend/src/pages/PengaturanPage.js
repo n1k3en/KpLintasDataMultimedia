@@ -68,6 +68,25 @@ function PengaturanPage() {
   // Manual payment settings state
   var [manualPaymentEnabled, setManualPaymentEnabled] = useState(true);
 
+  // QRIS state
+  var [currentQris, setCurrentQris] = useState(API_BASE_URL + '/images/qris.png');
+  var [isDefaultQris, setIsDefaultQris] = useState(true);
+  var [qrisFile, setQrisFile] = useState(null);
+  var [qrisPreview, setQrisPreview] = useState(null);
+  var [uploadingQris, setUploadingQris] = useState(false);
+  var [dragOverQris, setDragOverQris] = useState(false);
+  var qrisInputRef = useRef(null);
+
+  // Rekening Pembayaran state
+  var [rekeningList, setRekeningList] = useState([]);
+  var [loadingRekening, setLoadingRekening] = useState(false);
+  var [rekeningModal, setRekeningModal] = useState({
+    open: false,
+    mode: 'add',
+    data: { id: null, nama_bank: '', nomor_rekening: '', atas_nama: 'ESP Lintas Data Multimedia', is_active: 1 }
+  });
+  var [savingRekening, setSavingRekening] = useState(false);
+
   // Reminder settings state
   var [reminder, setReminder] = useState({
     dueDays: '3',
@@ -90,6 +109,18 @@ function PengaturanPage() {
           setIsDefaultLogo(!!res.data.data.is_default);
         }
       }).catch(function () { });
+
+    // 1b. Fetch QRIS
+    axios.get(API_BASE_URL + '/api/pengaturan/qris')
+      .then(function (res) {
+        if (res.data.success && res.data.data) {
+          setCurrentQris(API_BASE_URL + res.data.data.qris_url);
+          setIsDefaultQris(!!res.data.data.is_default);
+        }
+      }).catch(function () { });
+
+    // 1c. Fetch Rekening
+    fetchRekening();
 
     // 2. Fetch Config Service Data
     axios.get(API_BASE_URL + '/api/pengaturan/config', { headers: headers })
@@ -251,6 +282,218 @@ function PengaturanPage() {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleLogoSelect(e.dataTransfer.files[0]);
     }
+  };
+
+  // Fetch Rekening
+  var fetchRekening = function () {
+    setLoadingRekening(true);
+    axios.get(API_BASE_URL + '/api/pengaturan/rekening')
+      .then(function (res) {
+        if (res.data.success) {
+          setRekeningList(res.data.data || []);
+        }
+      })
+      .catch(function (err) {
+        console.error('Gagal mengambil daftar rekening:', err);
+      })
+      .finally(function () {
+        setLoadingRekening(false);
+      });
+  };
+
+  // QRIS Handlers
+  var handleQrisSelect = function (file) {
+    if (!file) return;
+
+    var allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (allowedTypes.indexOf(file.type) === -1) {
+      alert('Format file tidak didukung. Gunakan PNG atau JPG.');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file melebihi batas maksimal 2MB.');
+      return;
+    }
+
+    setQrisFile(file);
+    var reader = new FileReader();
+    reader.onloadend = function () {
+      setQrisPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  var handleQrisUpload = function () {
+    if (!qrisFile) return;
+
+    var token = localStorage.getItem('token');
+    if (!token) {
+      alert('Sesi Anda telah berakhir. Silakan login kembali.');
+      return;
+    }
+
+    setUploadingQris(true);
+    var formData = new FormData();
+    formData.append('qris', qrisFile);
+
+    axios.post(API_BASE_URL + '/api/pengaturan/qris', formData, {
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'multipart/form-data'
+      }
+    }).then(function (res) {
+      setUploadingQris(false);
+      if (res.data.success) {
+        setCurrentQris(API_BASE_URL + res.data.data.qris_url + '?t=' + Date.now());
+        setIsDefaultQris(false);
+        setQrisFile(null);
+        setQrisPreview(null);
+        setSuccessMsg('QRIS pembayaran berhasil diperbarui!');
+        setTimeout(function () { setSuccessMsg(''); }, 4000);
+      }
+    }).catch(function (err) {
+      setUploadingQris(false);
+      var msg = (err.response && err.response.data && err.response.data.message) || 'Gagal mengunggah QRIS.';
+      alert(msg);
+    });
+  };
+
+  var handleQrisReset = function () {
+    if (!window.confirm('Reset QRIS ke default?')) return;
+
+    var token = localStorage.getItem('token');
+    axios.delete(API_BASE_URL + '/api/pengaturan/qris', {
+      headers: { Authorization: 'Bearer ' + token }
+    }).then(function (res) {
+      if (res.data.success) {
+        setCurrentQris(API_BASE_URL + '/images/qris.png');
+        setIsDefaultQris(true);
+        setQrisFile(null);
+        setQrisPreview(null);
+        setSuccessMsg('QRIS berhasil di-reset ke default.');
+        setTimeout(function () { setSuccessMsg(''); }, 4000);
+      }
+    }).catch(function () {
+      alert('Gagal mereset QRIS.');
+    });
+  };
+
+  var handleQrisCancelSelect = function () {
+    setQrisFile(null);
+    setQrisPreview(null);
+    if (qrisInputRef.current) qrisInputRef.current.value = '';
+  };
+
+  // Rekening Modal & CRUD Handlers
+  var handleOpenAddRekening = function () {
+    setRekeningModal({
+      open: true,
+      mode: 'add',
+      data: { id: null, nama_bank: '', nomor_rekening: '', atas_nama: 'ESP Lintas Data Multimedia', is_active: 1 }
+    });
+  };
+
+  var handleOpenEditRekening = function (rek) {
+    setRekeningModal({
+      open: true,
+      mode: 'edit',
+      data: {
+        id: rek.id,
+        nama_bank: rek.nama_bank,
+        nomor_rekening: rek.nomor_rekening,
+        atas_nama: rek.atas_nama,
+        is_active: rek.is_active ? 1 : 0
+      }
+    });
+  };
+
+  var handleCloseRekeningModal = function () {
+    setRekeningModal({
+      open: false,
+      mode: 'add',
+      data: { id: null, nama_bank: '', nomor_rekening: '', atas_nama: 'ESP Lintas Data Multimedia', is_active: 1 }
+    });
+  };
+
+  var handleSaveRekening = function (e) {
+    e.preventDefault();
+    var token = localStorage.getItem('token');
+    if (!token) return;
+
+    var { id, nama_bank, nomor_rekening, atas_nama, is_active } = rekeningModal.data;
+    if (!nama_bank.trim() || !nomor_rekening.trim() || !atas_nama.trim()) {
+      alert('Mohon lengkapi Nama Bank, Nomor Rekening, dan Atas Nama.');
+      return;
+    }
+
+    setSavingRekening(true);
+    var isEdit = rekeningModal.mode === 'edit';
+    var url = isEdit
+      ? API_BASE_URL + '/api/pengaturan/rekening/' + id
+      : API_BASE_URL + '/api/pengaturan/rekening';
+    var method = isEdit ? 'put' : 'post';
+
+    axios[method](url, {
+      nama_bank: nama_bank.trim(),
+      nomor_rekening: nomor_rekening.trim(),
+      atas_nama: atas_nama.trim(),
+      is_active: is_active
+    }, {
+      headers: { Authorization: 'Bearer ' + token }
+    }).then(function (res) {
+      if (res.data.success) {
+        setSuccessMsg(res.data.message || (isEdit ? 'Rekening berhasil diperbarui!' : 'Rekening berhasil ditambahkan!'));
+        setTimeout(function () { setSuccessMsg(''); }, 4000);
+        handleCloseRekeningModal();
+        fetchRekening();
+      }
+    }).catch(function (err) {
+      var msg = (err.response && err.response.data && err.response.data.message) || 'Gagal menyimpan rekening.';
+      alert(msg);
+    }).finally(function () {
+      setSavingRekening(false);
+    });
+  };
+
+  var handleDeleteRekening = function (rek) {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus rekening ${rek.nama_bank} (${rek.nomor_rekening})?`)) {
+      return;
+    }
+
+    var token = localStorage.getItem('token');
+    axios.delete(API_BASE_URL + '/api/pengaturan/rekening/' + rek.id, {
+      headers: { Authorization: 'Bearer ' + token }
+    }).then(function (res) {
+      if (res.data.success) {
+        setSuccessMsg('Rekening berhasil dihapus.');
+        setTimeout(function () { setSuccessMsg(''); }, 3000);
+        fetchRekening();
+      }
+    }).catch(function (err) {
+      var msg = (err.response && err.response.data && err.response.data.message) || 'Gagal menghapus rekening.';
+      alert(msg);
+    });
+  };
+
+  var handleToggleActiveRekening = function (rek) {
+    var token = localStorage.getItem('token');
+    var newStatus = rek.is_active ? 0 : 1;
+
+    axios.put(API_BASE_URL + '/api/pengaturan/rekening/' + rek.id, {
+      nama_bank: rek.nama_bank,
+      nomor_rekening: rek.nomor_rekening,
+      atas_nama: rek.atas_nama,
+      is_active: newStatus
+    }, {
+      headers: { Authorization: 'Bearer ' + token }
+    }).then(function (res) {
+      if (res.data.success) {
+        fetchRekening();
+      }
+    }).catch(function (err) {
+      alert('Gagal mengubah status rekening.');
+    });
   };
 
   // Handle Save Configurations
@@ -513,14 +756,14 @@ function PengaturanPage() {
             return (
               <div
                 key={tab.id}
-                onClick={function () { if (tab.id !== 'manual') setActiveTab(tab.id); }}
+                onClick={function () { setActiveTab(tab.id); }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
                   padding: '12px 16px',
                   borderRadius: '8px',
-                  cursor: tab.id === 'manual' ? 'default' : 'pointer',
+                  cursor: 'pointer',
                   fontWeight: '600',
                   fontSize: '0.88rem',
                   color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
@@ -1042,11 +1285,267 @@ function PengaturanPage() {
             {/* 6. MANUAL PAYMENT TAB */}
             {activeTab === 'manual' && (
               <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Pembayaran Manual</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Atur apakah pilihan pembayaran melalui QRIS dan transfer bank manual dapat digunakan pelanggan.
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Pembayaran Manual (QRIS & Rekening Bank)</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0 }}>
+                      Atur aktivasi metode manual, upload kode QRIS baru, dan kelola daftar rekening bank tujuan transfer pelanggan.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-secondary)', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Status Pembayaran Manual:</span>
+                    {renderQuickSwitch(manualPaymentEnabled, handleManualPaymentToggle)}
+                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: manualPaymentEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+                      {manualPaymentEnabled ? 'AKTIF' : 'NONAKTIF'}
+                    </span>
+                  </div>
+                </div>
 
+                {/* Section 1: Pengaturan QRIS */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '20px',
+                  marginBottom: '28px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>1. Kode QRIS Pembayaran</h4>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        QRIS ini akan ditampilkan saat pelanggan memilih metode pembayaran QRIS di portal pelanggan.
+                      </span>
+                    </div>
+                    {!isDefaultQris && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleQrisReset}
+                        style={{ fontSize: '0.78rem' }}
+                      >
+                        Reset QRIS ke Default
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'start' }}>
+                    {/* Preview Current QRIS */}
+                    <div style={{
+                      width: '180px',
+                      padding: '12px',
+                      background: '#ffffff',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                    }}>
+                      <img
+                        src={qrisPreview || currentQris}
+                        alt="QRIS Preview"
+                        style={{ width: '100%', height: '156px', objectFit: 'contain', display: 'block', borderRadius: '4px' }}
+                      />
+                      <div style={{ marginTop: '8px', fontSize: '0.72rem', fontWeight: '700', color: qrisPreview ? '#e65100' : (isDefaultQris ? 'var(--text-muted)' : 'var(--primary)') }}>
+                        {qrisPreview ? 'Preview File Dipilih' : (isDefaultQris ? 'QRIS Default' : 'QRIS Kustom Aktif')}
+                      </div>
+                    </div>
+
+                    {/* Upload QRIS Dropzone */}
+                    <div>
+                      <input
+                        type="file"
+                        ref={qrisInputRef}
+                        accept="image/png, image/jpeg, image/jpg"
+                        style={{ display: 'none' }}
+                        onChange={function (e) {
+                          if (e.target.files && e.target.files[0]) {
+                            handleQrisSelect(e.target.files[0]);
+                          }
+                        }}
+                      />
+                      <div
+                        onDragOver={function (e) { e.preventDefault(); setDragOverQris(true); }}
+                        onDragLeave={function (e) { e.preventDefault(); setDragOverQris(false); }}
+                        onDrop={function (e) {
+                          e.preventDefault();
+                          setDragOverQris(false);
+                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            handleQrisSelect(e.dataTransfer.files[0]);
+                          }
+                        }}
+                        onClick={function () { if (qrisInputRef.current) qrisInputRef.current.click(); }}
+                        style={{
+                          border: dragOverQris ? '2px dashed var(--primary)' : '2px dashed var(--border-color)',
+                          borderRadius: '8px',
+                          padding: '24px 20px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          backgroundColor: dragOverQris ? 'rgba(0, 104, 118, 0.05)' : 'var(--card-bg)',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '36px', color: 'var(--primary)', marginBottom: '8px', display: 'block' }}>
+                          qr_code_scanner
+                        </span>
+                        <div style={{ fontSize: '0.88rem', fontWeight: '700', marginBottom: '4px' }}>
+                          Klik atau seret file gambar QRIS baru ke sini
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                          Format file: PNG atau JPG (Maksimal 2MB). Rekomendasi rasio 1:1 persegi.
+                        </div>
+                      </div>
+
+                      {qrisFile && (
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={handleQrisUpload}
+                            disabled={uploadingQris}
+                          >
+                            {uploadingQris ? 'Mengunggah QRIS...' : 'Simpan QRIS Baru'}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleQrisCancelSelect}
+                            disabled={uploadingQris}
+                          >
+                            Batal
+                          </button>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {qrisFile.name} ({(qrisFile.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Daftar Rekening Pembayaran */}
+                <div style={{
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '20px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>2. Rekening Bank Pembayaran</h4>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        Daftar rekening bank / e-wallet yang ditampilkan kepada pelanggan untuk transfer manual.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={handleOpenAddRekening}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+                      Tambah Rekening
+                    </button>
+                  </div>
+
+                  {loadingRekening ? (
+                    <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Memuat daftar rekening...
+                    </div>
+                  ) : rekeningList.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '32px 20px', border: '1px dashed var(--border-color)', borderRadius: '8px', background: 'var(--card-bg)' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>
+                        account_balance
+                      </span>
+                      <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>Belum Ada Rekening Pembayaran</div>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                        Tambahkan rekening bank atau e-wallet tujuan transfer untuk pelanggan.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleOpenAddRekening}
+                      >
+                        + Tambah Rekening Pertama
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+                      {rekeningList.map(function (rek) {
+                        return (
+                          <div
+                            key={rek.id}
+                            style={{
+                              background: 'var(--card-bg, #ffffff)',
+                              border: '1px solid var(--border-color)',
+                              borderRadius: '8px',
+                              padding: '16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                              opacity: rek.is_active ? 1 : 0.7
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: '800',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  color: 'var(--primary)',
+                                  background: 'rgba(0, 104, 118, 0.08)',
+                                  padding: '3px 8px',
+                                  borderRadius: '4px'
+                                }}>
+                                  {rek.nama_bank}
+                                </span>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }} title="Ubah status aktif">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!rek.is_active}
+                                    onChange={function () { handleToggleActiveRekening(rek); }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: rek.is_active ? '#2e7d32' : 'var(--text-muted)' }}>
+                                    {rek.is_active ? 'Aktif' : 'Nonaktif'}
+                                  </span>
+                                </label>
+                              </div>
+
+                              <div style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '0.5px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                                {rek.nomor_rekening}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                                a/n {rek.atas_nama}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                onClick={function () { handleOpenEditRekening(rek); }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                onClick={function () { handleDeleteRekening(rek); }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
+                                Hapus
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1156,6 +1655,145 @@ function PengaturanPage() {
           </form>
         </div>
       </div>
+
+      {/* Rekening Modal Dialog */}
+      {rekeningModal.open && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--card-bg, #ffffff)',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '460px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+            overflow: 'hidden',
+            border: '1px solid var(--border-color)'
+          }}>
+            <div style={{
+              padding: '18px 22px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>
+                {rekeningModal.mode === 'add' ? 'Tambah Rekening Pembayaran' : 'Edit Rekening Pembayaran'}
+              </h4>
+              <button
+                type="button"
+                onClick={handleCloseRekeningModal}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.4rem', color: 'var(--text-muted)', lineHeight: 1 }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveRekening} style={{ padding: '22px' }}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: '700', marginBottom: '6px' }}>
+                  Nama Bank / E-Wallet *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Bank BRI, Bank BCA, Mandiri, Dana, dll."
+                  value={rekeningModal.data.nama_bank}
+                  onChange={function (e) {
+                    setRekeningModal({
+                      ...rekeningModal,
+                      data: { ...rekeningModal.data, nama_bank: e.target.value }
+                    });
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: '700', marginBottom: '6px' }}>
+                  Nomor Rekening / No. Virtual Account *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: 0346-01-001962-50-8"
+                  value={rekeningModal.data.nomor_rekening}
+                  onChange={function (e) {
+                    setRekeningModal({
+                      ...rekeningModal,
+                      data: { ...rekeningModal.data, nomor_rekening: e.target.value }
+                    });
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '18px' }}>
+                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: '700', marginBottom: '6px' }}>
+                  Atas Nama Pemilik Rekening *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: ESP Lintas Data Multimedia"
+                  value={rekeningModal.data.atas_nama}
+                  onChange={function (e) {
+                    setRekeningModal({
+                      ...rekeningModal,
+                      data: { ...rekeningModal.data, atas_nama: e.target.value }
+                    });
+                  }}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!rekeningModal.data.is_active}
+                    onChange={function (e) {
+                      setRekeningModal({
+                        ...rekeningModal,
+                        data: { ...rekeningModal.data, is_active: e.target.checked ? 1 : 0 }
+                      });
+                    }}
+                  />
+                  <span style={{ fontSize: '0.84rem', fontWeight: '600' }}>Aktifkan rekening ini untuk pembayaran pelanggan</span>
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseRekeningModal}
+                  disabled={savingRekening}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={savingRekening}
+                >
+                  {savingRekening ? 'Menyimpan...' : 'Simpan Rekening'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

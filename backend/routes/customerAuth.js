@@ -10,10 +10,10 @@ var rateLimit = require('express-rate-limit');
 
 var otpLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 menit
-  max: 3, // Maksimal 3 permintaan per IP/Window
+  max: 10, // Maksimal 10 permintaan per IP/Window
   message: {
     success: false,
-    message: 'Terlalu banyak permintaan OTP. Silakan coba lagi dalam 5 menit.'
+    message: 'Terlalu banyak permintaan OTP. Silakan coba lagi dalam beberapa menit.'
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -36,9 +36,15 @@ router.post('/forgot-password/request-otp', otpLimiter, function(req, res) {
     var customer = results[0];
     var otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     Otp.createOtp(email, otpCode, async function(otpErr) {
-      if (otpErr) return res.status(500).json({ success: false, message: 'Gagal membuat OTP.' });
+      if (otpErr) {
+        console.error('[CustomerAuth] Error saat createOtp (forgot-password):', otpErr);
+        return res.status(500).json({ success: false, message: 'Gagal membuat OTP.' });
+      }
       var sendResult = await EmailService.sendOtpEmail(email, { nama: customer.nama, otp: otpCode, purpose: 'reset password' });
-      if (!sendResult.success) return res.status(500).json({ success: false, message: 'Gagal mengirim OTP.' });
+      if (!sendResult.success) {
+        console.error('[CustomerAuth] Gagal mengirim OTP email (forgot-password):', sendResult);
+        return res.status(500).json({ success: false, message: 'Gagal mengirim OTP.' });
+      }
       res.json({ success: true, message: 'OTP reset password telah dikirim ke email.' });
     });
   });
@@ -134,6 +140,7 @@ router.post('/request-otp', otpLimiter, function(req, res) {
     // Store OTP in database (using email as identifier)
     Otp.createOtp(customer.email, otpCode, async function(otpErr) {
       if (otpErr) {
+        console.error('[CustomerAuth] Error saat createOtp (request-otp):', otpErr);
         return res.status(500).json({ success: false, message: 'Gagal membuat kode verifikasi.' });
       }
 
@@ -150,6 +157,7 @@ router.post('/request-otp', otpLimiter, function(req, res) {
           email: customer.email 
         });
       } else {
+        console.error('[CustomerAuth] Gagal mengirim Email OTP (request-otp):', sendRes);
         // Fallback info in response if email fails
         res.status(500).json({ 
           success: false, 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
+import TemplateIcon from '../components/TemplateIcon';
 import { API_BASE_URL } from '../config';
 import { useLogo } from '../context/LogoContext';
 
@@ -9,6 +10,9 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
   var { logoUrl } = useLogo();
   var [email, setEmail] = useState(userEmail ? decodeURIComponent(userEmail) : '');
   var [password, setPassword] = useState('');
+  var [showPassword, setShowPassword] = useState(false);
+  var [showNewPassword, setShowNewPassword] = useState(false);
+  var [showConfirmPassword, setShowConfirmPassword] = useState(false);
   var [otp, setOtp] = useState('');
   var [step, setStep] = useState(1); // 1: input phone, 2: input OTP
   var [forgotMode, setForgotMode] = useState(false);
@@ -251,11 +255,69 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
               <form onSubmit={resetPassword}>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Password Baru</label>
-                  <input type="password" minLength="6" value={newPassword} onChange={function (e) { setNewPassword(e.target.value); }} required style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }} />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      minLength="6"
+                      value={newPassword}
+                      onChange={function (e) { setNewPassword(e.target.value); }}
+                      required
+                      style={{ width: '100%', padding: '14px 44px 14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={function () { setShowNewPassword(!showNewPassword); }}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: showNewPassword ? 'var(--md-primary)' : 'var(--md-outline)'
+                      }}
+                      title={showNewPassword ? "Sembunyikan password" : "Lihat password"}
+                      aria-label={showNewPassword ? "Sembunyikan password" : "Lihat password"}
+                    >
+                      <TemplateIcon name={showNewPassword ? "eye-off" : "eye"} size={18} />
+                    </button>
+                  </div>
                 </div>
                 <div style={{ marginBottom: 20 }}>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 500, marginBottom: 6 }}>Verifikasi Password Baru</label>
-                  <input type="password" minLength="6" value={confirmPassword} onChange={function (e) { setConfirmPassword(e.target.value); }} required style={{ width: '100%', padding: '14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }} />
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      minLength="6"
+                      value={confirmPassword}
+                      onChange={function (e) { setConfirmPassword(e.target.value); }}
+                      required
+                      style={{ width: '100%', padding: '14px 44px 14px 16px', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '0.95rem', background: 'var(--md-surface-container-low)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={function () { setShowConfirmPassword(!showConfirmPassword); }}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: showConfirmPassword ? 'var(--md-primary)' : 'var(--md-outline)'
+                      }}
+                      title={showConfirmPassword ? "Sembunyikan password" : "Lihat password"}
+                      aria-label={showConfirmPassword ? "Sembunyikan password" : "Lihat password"}
+                    >
+                      <TemplateIcon name={showConfirmPassword ? "eye-off" : "eye"} size={18} />
+                    </button>
+                  </div>
                 </div>
                 <button type="submit" disabled={loading} style={{ width: '100%', padding: 14, border: 'none', borderRadius: 'var(--radius-md)', background: 'var(--md-primary-container)', color: 'var(--md-on-primary-container)', fontWeight: 700 }}>{loading ? 'Mengubah Password...' : 'Ubah Password'}</button>
                 <button type="button" onClick={switchToLogin} style={{ width: '100%', marginTop: 10, padding: 12, border: '1px solid var(--md-outline-variant)', borderRadius: 'var(--radius-md)', background: 'var(--md-surface-container)', fontWeight: 600 }}>Kembali ke Login</button>
@@ -299,22 +361,44 @@ function CustomerLoginPage({ onLogin, title = "Portal Pembayaran" }) {
                   marginLeft: 4,
                   display: 'block'
                 }}>Password</label>
-                <input
-                  type="password"
-                  placeholder="Masukkan password"
-                  value={password}
-                  onChange={function (e) { setPassword(e.target.value); }}
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'var(--md-surface-container-low)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '14px 16px',
-                    fontSize: '0.95rem',
-                    outline: 'none'
-                  }}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Masukkan password"
+                    value={password}
+                    onChange={function (e) { setPassword(e.target.value); }}
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'var(--md-surface-container-low)',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '14px 44px 14px 16px',
+                      fontSize: '0.95rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={function () { setShowPassword(!showPassword); }}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: showPassword ? 'var(--md-primary)' : 'var(--md-outline)'
+                    }}
+                    title={showPassword ? "Sembunyikan password" : "Lihat password"}
+                    aria-label={showPassword ? "Sembunyikan password" : "Lihat password"}
+                  >
+                    <TemplateIcon name={showPassword ? "eye-off" : "eye"} size={18} />
+                  </button>
+                </div>
               </div>
               <button type="button" className="forgot-password-link" onClick={function () { setForgotMode(true); setError(''); setSuccessMsg(''); }}>Lupa Password?</button>
               <button

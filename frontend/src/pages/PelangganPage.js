@@ -25,6 +25,7 @@ function PelangganPage({ socket }) {
     due_date: ''
   });
   var [formError, setFormError] = useState('');
+  var [showCustomerPassword, setShowCustomerPassword] = useState(false);
   var [searchQuery, setSearchQuery] = useState('');
 
   var token = localStorage.getItem('token');
@@ -417,15 +418,38 @@ function PelangganPage({ socket }) {
           {!editMode && (
             <div className="form-group">
               <label>Password Pelanggan * (Min. 6 Karakter)</label>
-              <input
-                type="password"
-                name="password"
-                placeholder="Masukkan password login pelanggan"
-                value={formData.password}
-                onChange={handleChange}
-                minLength={6}
-                required
-              />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  type={showCustomerPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Masukkan password login pelanggan"
+                  value={formData.password}
+                  onChange={handleChange}
+                  minLength={6}
+                  required
+                  style={{ width: '100%', paddingRight: '40px' }}
+                />
+                <button
+                  type="button"
+                  onClick={function () { setShowCustomerPassword(!showCustomerPassword); }}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: showCustomerPassword ? 'var(--primary, #006876)' : 'var(--text-muted, #888)'
+                  }}
+                  title={showCustomerPassword ? "Sembunyikan password" : "Lihat password"}
+                  aria-label={showCustomerPassword ? "Sembunyikan password" : "Lihat password"}
+                >
+                  <TemplateIcon name={showCustomerPassword ? "eye-off" : "eye"} size={18} />
+                </button>
+              </div>
             </div>
           )}
           <div className="form-group">
