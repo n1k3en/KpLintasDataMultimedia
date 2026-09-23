@@ -96,7 +96,7 @@ var ConfigService = {
    */
   getAll: function () {
     var activePaymentGateway = this.get('PAYMENT_GATEWAY_ACTIVE', 'midtrans');
-    if (['midtrans', 'duitku'].indexOf(activePaymentGateway) === -1) activePaymentGateway = 'midtrans';
+    if (['midtrans', 'duitku', 'none'].indexOf(activePaymentGateway) === -1) activePaymentGateway = 'midtrans';
 
     return {
       // General ISP Profile

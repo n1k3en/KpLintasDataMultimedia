@@ -182,6 +182,35 @@ function LaporanPage() {
     return 'Rp ' + Number(value).toLocaleString('id-ID');
   }
 
+  function renderPagination(currentPage, totalPages, setPage) {
+    if (totalPages <= 1) return null;
+
+    var pages = [];
+    for (var page = 1; page <= totalPages; page++) pages.push(page);
+
+    return (
+      <nav aria-label="Page navigation" style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px', borderTop: '1px solid var(--border-color)', overflowX: 'auto' }}>
+        <ul className="pagination" style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content', margin: 0, padding: 0, listStyle: 'none' }}>
+          <li className={'page-item' + (currentPage === 1 ? ' disabled' : '')}>
+            <a href="#" className="report-page-button page-link" onClick={function (e) { e.preventDefault(); if (currentPage !== 1) setPage(Math.max(1, currentPage - 1)); }} aria-label="Previous" aria-disabled={currentPage === 1} tabIndex={currentPage === 1 ? -1 : undefined}><span aria-hidden="true">«</span><span className="sr-only">Previous</span></a>
+          </li>
+          {pages.map(function (pageNumber) {
+            return (
+              <li
+                key={pageNumber}
+              >
+                <a href="#" className={'report-page-button page-link' + (currentPage === pageNumber ? ' active' : '')} onClick={function (e) { e.preventDefault(); setPage(pageNumber); }} aria-label={'Halaman ' + pageNumber} aria-current={currentPage === pageNumber ? 'page' : undefined}>{pageNumber}</a>
+              </li>
+            );
+          })}
+          <li className={'page-item' + (currentPage === totalPages ? ' disabled' : '')}>
+            <a href="#" className="report-page-button page-link" onClick={function (e) { e.preventDefault(); if (currentPage !== totalPages) setPage(Math.min(totalPages, currentPage + 1)); }} aria-label="Next" aria-disabled={currentPage === totalPages} tabIndex={currentPage === totalPages ? -1 : undefined}><span aria-hidden="true">»</span><span className="sr-only">Next</span></a>
+          </li>
+        </ul>
+      </nav>
+    );
+  }
+
   var totalExpensesPages = Math.ceil(expenses.length / 10) || 1;
   var currentExpenses = expenses.slice((expensePage - 1) * 10, expensePage * 10);
 
@@ -190,6 +219,58 @@ function LaporanPage() {
 
   return (
     <div>
+      <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+        .report-page-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          width: 34px;
+          height: 32px;
+          border: 1px solid var(--border-color);
+          border-left: 0;
+          background: var(--bg-card);
+          color: var(--text-primary);
+          font-size: 0.95rem;
+          cursor: pointer;
+        }
+        .page-item:first-child .report-page-button {
+          border-left: 1px solid var(--border-color);
+          border-radius: 6px 0 0 6px;
+        }
+        .page-item:last-child .report-page-button {
+          border-radius: 0 6px 6px 0;
+        }
+        .report-page-button:hover:not(:disabled) {
+          background: var(--bg-tertiary);
+        }
+        .report-page-button.active {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .report-page-button.active:hover {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .page-item.disabled .report-page-button {
+          color: #006876;
+          cursor: not-allowed;
+          pointer-events: none;
+        }
+      `}</style>
       {/* Page Header */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
@@ -594,41 +675,7 @@ function LaporanPage() {
               </div>
 
               {/* Pagination controls for expenses */}
-              {totalExpensesPages > 1 && (
-                <div className="table-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', padding: '12px 16px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Menampilkan {Math.min((expensePage - 1) * 10 + 1, expenses.length)} - {Math.min(expensePage * 10, expenses.length)} dari {expenses.length} data
-                  </span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={expensePage === 1}
-                      onClick={function () { setExpensePage(function (p) { return p - 1; }); }}
-                      style={{ padding: '4px 8px' }}
-                    >
-                      Sebelumnya
-                    </button>
-                    {Array.from({ length: totalExpensesPages }, (_, i) => i + 1).map(p => (
-                      <button
-                        key={p}
-                        className={'btn btn-sm ' + (expensePage === p ? 'btn-primary' : 'btn-secondary')}
-                        onClick={function () { setExpensePage(p); }}
-                        style={{ minWidth: '30px', padding: '4px 6px', fontWeight: 'bold' }}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={expensePage === totalExpensesPages}
-                      onClick={function () { setExpensePage(function (p) { return p + 1; }); }}
-                      style={{ padding: '4px 8px' }}
-                    >
-                      Selanjutnya
-                    </button>
-                  </div>
-                </div>
-              )}
+              {renderPagination(expensePage, totalExpensesPages, setExpensePage)}
             </>
           )}
         </div>
@@ -678,41 +725,7 @@ function LaporanPage() {
               </div>
 
               {/* Pagination controls for incomes */}
-              {totalIncomesPages > 1 && (
-                <div className="table-pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', padding: '12px 16px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Menampilkan {Math.min((incomePage - 1) * 10 + 1, incomes.length)} - {Math.min(incomePage * 10, incomes.length)} dari {incomes.length} data
-                  </span>
-                  <div style={{ display: 'flex', gap: '4px' }}>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={incomePage === 1}
-                      onClick={function () { setIncomePage(function (p) { return p - 1; }); }}
-                      style={{ padding: '4px 8px' }}
-                    >
-                      Sebelumnya
-                    </button>
-                    {Array.from({ length: totalIncomesPages }, (_, i) => i + 1).map(p => (
-                      <button
-                        key={p}
-                        className={'btn btn-sm ' + (incomePage === p ? 'btn-primary' : 'btn-secondary')}
-                        onClick={function () { setIncomePage(p); }}
-                        style={{ minWidth: '30px', padding: '4px 6px', fontWeight: 'bold' }}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      disabled={incomePage === totalIncomesPages}
-                      onClick={function () { setIncomePage(function (p) { return p + 1; }); }}
-                      style={{ padding: '4px 8px' }}
-                    >
-                      Selanjutnya
-                    </button>
-                  </div>
-                </div>
-              )}
+              {renderPagination(incomePage, totalIncomesPages, setIncomePage)}
             </>
           )}
         </div>

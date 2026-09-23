@@ -25,6 +25,7 @@ function TagihanPage({ socket, admin }) {
   var [searchQuery, setSearchQuery] = useState('');
   var [filterStatus, setFilterStatus] = useState('semua'); // 'semua', 'belum_bayar', 'menunggu_verifikasi', 'lunas', 'terlambat'
   var [periodeFilter, setPeriodeFilter] = useState('');
+  var [currentPage, setCurrentPage] = useState(1);
   var [copiedId, setCopiedId] = useState(null);
   var [viewBuktiItem, setViewBuktiItem] = useState(null);
 
@@ -43,6 +44,18 @@ function TagihanPage({ socket, admin }) {
 
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
+
+  var pageSize = filterStatus === 'lunas' ? 10 : 15;
+  var totalPages = Math.max(1, Math.ceil(tagihanList.length / pageSize));
+  var paginatedTagihan = tagihanList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  useEffect(function () {
+    setCurrentPage(1);
+  }, [filterStatus, periodeFilter, searchQuery]);
+
+  useEffect(function () {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   var fetchStats = useCallback(async function () {
     try {
@@ -297,9 +310,58 @@ function TagihanPage({ socket, admin }) {
     );
   }
 
+  function renderPagination() {
+    if (tagihanList.length <= pageSize) return null;
+
+    var pages = [];
+    for (var page = 1; page <= totalPages; page++) {
+      pages.push(page);
+    }
+
+    return (
+      <nav aria-label="Page navigation" className="tagihan-pagination" style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+        padding: '12px 20px',
+        borderTop: '1px solid var(--border-color)',
+        overflowX: 'auto'
+      }}>
+        <ul className="pagination" style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content', margin: 0, padding: 0, listStyle: 'none' }}>
+          <li className={'page-item' + (currentPage === 1 ? ' disabled' : '')}>
+            <a href="#" className="tagihan-page-button page-link" onClick={function (e) { e.preventDefault(); if (currentPage !== 1) setCurrentPage(Math.max(1, currentPage - 1)); }} aria-label="Previous" aria-disabled={currentPage === 1} tabIndex={currentPage === 1 ? -1 : undefined}><span aria-hidden="true">«</span><span className="sr-only">Previous</span></a>
+          </li>
+          {pages.map(function (pageNumber) {
+            return (
+              <li
+                key={pageNumber}
+              >
+                <a href="#" className={'tagihan-page-button page-link' + (currentPage === pageNumber ? ' active' : '')} onClick={function (e) { e.preventDefault(); setCurrentPage(pageNumber); }} aria-label={'Halaman ' + pageNumber} aria-current={currentPage === pageNumber ? 'page' : undefined}>{pageNumber}</a>
+              </li>
+            );
+          })}
+          <li className={'page-item' + (currentPage === totalPages ? ' disabled' : '')}>
+            <a href="#" className="tagihan-page-button page-link" onClick={function (e) { e.preventDefault(); if (currentPage !== totalPages) setCurrentPage(Math.min(totalPages, currentPage + 1)); }} aria-label="Next" aria-disabled={currentPage === totalPages} tabIndex={currentPage === totalPages ? -1 : undefined}><span aria-hidden="true">»</span><span className="sr-only">Next</span></a>
+          </li>
+        </ul>
+      </nav>
+    );
+  }
+
   return (
     <div style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
       <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
         .tagihan-hero {
           background: linear-gradient(135deg, #004e5a 0%, #006877 100%);
           border-radius: var(--radius-xl);
@@ -426,6 +488,46 @@ function TagihanPage({ socket, admin }) {
           background: #ef4444;
           color: white;
           border-color: #ef4444;
+        }
+        .tagihan-page-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          width: 34px;
+          height: 32px;
+          border: 1px solid var(--border-color);
+          border-left: 0;
+          background: var(--bg-card);
+          color: var(--text-primary);
+          font-size: 1rem;
+          cursor: pointer;
+          transition: background 0.2s ease, color 0.2s ease;
+        }
+        .page-item:first-child .tagihan-page-button {
+          border-left: 1px solid var(--border-color);
+          border-radius: 6px 0 0 6px;
+        }
+        .page-item:last-child .tagihan-page-button {
+          border-radius: 0 6px 6px 0;
+        }
+        .tagihan-page-button:hover:not(:disabled) {
+          background: var(--bg-tertiary);
+        }
+        .tagihan-page-button.active {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .tagihan-page-button.active:hover {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .page-item.disabled .tagihan-page-button {
+          color: #006876;
+          cursor: not-allowed;
+          pointer-events: none;
         }
       `}</style>
 
@@ -646,10 +748,10 @@ function TagihanPage({ socket, admin }) {
                 </tr>
               </thead>
               <tbody>
-                {tagihanList.map(function (item, idx) {
+                {paginatedTagihan.map(function (item, idx) {
                   return (
                     <tr key={item.id_tagihan}>
-                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{(currentPage - 1) * pageSize + idx + 1}</td>
                       <td>
                         <span style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--primary)' }}>
                           #INV-{item.id_tagihan}
@@ -746,6 +848,7 @@ function TagihanPage({ socket, admin }) {
                 })}
               </tbody>
             </table>
+            {renderPagination()}
           </div>
         )}
       </div>

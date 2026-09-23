@@ -10,6 +10,7 @@ function NotifikasiPage({ socket, admin }) {
   var [loading, setLoading] = useState(true);
   var [searchQuery, setSearchQuery] = useState('');
   var [filterStatus, setFilterStatus] = useState('all'); // 'all', 'unread', 'read', 'manual', 'midtrans'
+  var [notifPage, setNotifPage] = useState(1);
   var [viewMidtransDetail, setViewMidtransDetail] = useState(null);
   var [viewNotif, setViewNotif] = useState(null);
   var [actionLoading, setActionLoading] = useState(false);
@@ -37,6 +38,10 @@ function NotifikasiPage({ socket, admin }) {
   useEffect(function () {
     fetchNotifications();
   }, []);
+
+  useEffect(function () {
+    setNotifPage(1);
+  }, [searchQuery, filterStatus]);
 
   // Auto open modal if notifId param exists in URL query string
   useEffect(function () {
@@ -213,6 +218,42 @@ function NotifikasiPage({ socket, admin }) {
     return true;
   });
 
+  var notificationsPerPage = 15;
+  var totalNotifPages = Math.ceil(filteredNotifs.length / notificationsPerPage) || 1;
+  var currentNotifs = filteredNotifs.slice(
+    (notifPage - 1) * notificationsPerPage,
+    notifPage * notificationsPerPage
+  );
+
+  function renderPagination() {
+    if (totalNotifPages <= 1) return null;
+
+    var pages = [];
+    for (var page = 1; page <= totalNotifPages; page++) pages.push(page);
+
+    return (
+      <nav aria-label="Page navigation" style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px', borderTop: '1px solid var(--border-color)', overflowX: 'auto' }}>
+        <ul className="pagination" style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content', margin: 0, padding: 0, listStyle: 'none' }}>
+          <li className={'page-item' + (notifPage === 1 ? ' disabled' : '')}>
+            <a href="#" className="report-page-button page-link" onClick={function (e) { e.preventDefault(); if (notifPage !== 1) setNotifPage(Math.max(1, notifPage - 1)); }} aria-label="Previous" aria-disabled={notifPage === 1} tabIndex={notifPage === 1 ? -1 : undefined}><span aria-hidden="true">«</span><span className="sr-only">Previous</span></a>
+          </li>
+          {pages.map(function (pageNumber) {
+            return (
+              <li
+                key={pageNumber}
+              >
+                <a href="#" className={'report-page-button page-link' + (notifPage === pageNumber ? ' active' : '')} onClick={function (e) { e.preventDefault(); setNotifPage(pageNumber); }} aria-label={'Halaman ' + pageNumber} aria-current={notifPage === pageNumber ? 'page' : undefined}>{pageNumber}</a>
+              </li>
+            );
+          })}
+          <li className={'page-item' + (notifPage === totalNotifPages ? ' disabled' : '')}>
+            <a href="#" className="report-page-button page-link" onClick={function (e) { e.preventDefault(); if (notifPage !== totalNotifPages) setNotifPage(Math.min(totalNotifPages, notifPage + 1)); }} aria-label="Next" aria-disabled={notifPage === totalNotifPages} tabIndex={notifPage === totalNotifPages ? -1 : undefined}><span aria-hidden="true">»</span><span className="sr-only">Next</span></a>
+          </li>
+        </ul>
+      </nav>
+    );
+  }
+
   function formatTanggal(dateStr) {
     if (!dateStr) return '-';
     var d = new Date(dateStr);
@@ -227,6 +268,35 @@ function NotifikasiPage({ socket, admin }) {
 
   return (
     <div>
+      <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+        .report-page-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 34px;
+          height: 32px;
+          border: 1px solid var(--border-color);
+          border-left: 0;
+          background: var(--bg-card);
+          color: var(--text-primary);
+          text-decoration: none;
+        }
+        .page-item:first-child .report-page-button { border-left: 1px solid var(--border-color); border-radius: 6px 0 0 6px; }
+        .page-item:last-child .report-page-button { border-radius: 0 6px 6px 0; }
+        .report-page-button.active { background: #006876; color: #ffffff; border-color: #006876; }
+        .page-item.disabled .report-page-button { color: #006876; cursor: not-allowed; pointer-events: none; }
+      `}</style>
       <div className="page-header">
         <div>
           <h1>Notifikasi Pembayaran</h1>
@@ -331,7 +401,7 @@ function NotifikasiPage({ socket, admin }) {
               </tr>
             </thead>
             <tbody>
-              {filteredNotifs.map(function (notif, idx) {
+              {currentNotifs.map(function (notif, idx) {
                 var isUnread = notif.status_baca === 0;
                 var metodeInfo = getMetodeInfo(notif.bukti_file);
                 return (
@@ -342,7 +412,7 @@ function NotifikasiPage({ socket, admin }) {
                       fontWeight: isUnread ? '600' : 'normal'
                     }}
                   >
-                    <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
+                    <td style={{ color: 'var(--text-muted)' }}>{(notifPage - 1) * notificationsPerPage + idx + 1}</td>
                     <td>
                       <span className={'status-badge ' + metodeInfo.class}>
                         {metodeInfo.label}
@@ -416,6 +486,7 @@ function NotifikasiPage({ socket, admin }) {
             </tbody>
           </table>
         )}
+        {!loading && filteredNotifs.length > 0 && renderPagination()}
       </div>
 
       {/* Modal for manual payment proof and verification */}
