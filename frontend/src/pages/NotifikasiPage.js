@@ -498,7 +498,7 @@ function NotifikasiPage({ socket, admin }) {
           footer={(
             <>
               <button className="btn btn-secondary" onClick={function () { setViewNotif(null); }}>Batal</button>
-              {!isSuperAdmin && (
+              {(isSuperAdmin || admin) && (
                 <>
                   <button
                     className="btn btn-danger"
