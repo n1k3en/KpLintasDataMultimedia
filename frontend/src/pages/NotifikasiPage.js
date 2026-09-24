@@ -218,7 +218,7 @@ function NotifikasiPage({ socket, admin }) {
     return true;
   });
 
-  var notificationsPerPage = 15;
+  var notificationsPerPage = 10;
   var totalNotifPages = Math.ceil(filteredNotifs.length / notificationsPerPage) || 1;
   var currentNotifs = filteredNotifs.slice(
     (notifPage - 1) * notificationsPerPage,
