@@ -27,6 +27,7 @@ function PelangganPage({ socket }) {
   var [formError, setFormError] = useState('');
   var [showCustomerPassword, setShowCustomerPassword] = useState(false);
   var [searchQuery, setSearchQuery] = useState('');
+  var [customerPage, setCustomerPage] = useState(1);
 
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
@@ -177,6 +178,52 @@ function PelangganPage({ socket }) {
     );
   });
 
+  var customersPerPage = 10;
+  var totalCustomerPages = Math.ceil(filteredPelanggan.length / customersPerPage) || 1;
+  var currentCustomers = filteredPelanggan.slice(
+    (customerPage - 1) * customersPerPage,
+    customerPage * customersPerPage
+  );
+
+  useEffect(function () {
+    setCustomerPage(1);
+  }, [searchQuery]);
+
+  useEffect(function () {
+    if (customerPage > totalCustomerPages) {
+      setCustomerPage(totalCustomerPages);
+    }
+  }, [customerPage, totalCustomerPages]);
+
+  function renderPagination() {
+    if (totalCustomerPages <= 1) return null;
+
+    var pages = [];
+    for (var page = 1; page <= totalCustomerPages; page++) pages.push(page);
+
+    return (
+      <nav aria-label="Page navigation" style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px', borderTop: '1px solid var(--border-color)', overflowX: 'auto' }}>
+        <ul className="pagination" style={{ display: 'flex', alignItems: 'center', minWidth: 'max-content', margin: 0, padding: 0, listStyle: 'none' }}>
+          <li className={'page-item' + (customerPage === 1 ? ' disabled' : '')}>
+            <a href="#" className="customer-page-button page-link" onClick={function (e) { e.preventDefault(); if (customerPage !== 1) setCustomerPage(Math.max(1, customerPage - 1)); }} aria-label="Previous" aria-disabled={customerPage === 1} tabIndex={customerPage === 1 ? -1 : undefined}><span aria-hidden="true">«</span><span className="sr-only">Previous</span></a>
+          </li>
+          {pages.map(function (pageNumber) {
+            return (
+              <li
+                key={pageNumber}
+              >
+                <a href="#" className={'customer-page-button page-link' + (customerPage === pageNumber ? ' active' : '')} onClick={function (e) { e.preventDefault(); setCustomerPage(pageNumber); }} aria-label={'Halaman ' + pageNumber} aria-current={customerPage === pageNumber ? 'page' : undefined}>{pageNumber}</a>
+              </li>
+            );
+          })}
+          <li className={'page-item' + (customerPage === totalCustomerPages ? ' disabled' : '')}>
+            <a href="#" className="customer-page-button page-link" onClick={function (e) { e.preventDefault(); if (customerPage !== totalCustomerPages) setCustomerPage(Math.min(totalCustomerPages, customerPage + 1)); }} aria-label="Next" aria-disabled={customerPage === totalCustomerPages} tabIndex={customerPage === totalCustomerPages ? -1 : undefined}><span aria-hidden="true">»</span><span className="sr-only">Next</span></a>
+          </li>
+        </ul>
+      </nav>
+    );
+  }
+
   function formatTanggal(dateStr) {
     if (!dateStr) return '-';
     var d = new Date(dateStr);
@@ -216,6 +263,58 @@ function PelangganPage({ socket }) {
 
   return (
     <div>
+      <style>{`
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
+        .customer-page-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-decoration: none;
+          width: 34px;
+          height: 32px;
+          border: 1px solid var(--border-color);
+          border-left: 0;
+          background: var(--bg-card);
+          color: var(--text-primary);
+          font-size: 0.95rem;
+          cursor: pointer;
+        }
+        .page-item:first-child .customer-page-button {
+          border-left: 1px solid var(--border-color);
+          border-radius: 6px 0 0 6px;
+        }
+        .page-item:last-child .customer-page-button {
+          border-radius: 0 6px 6px 0;
+        }
+        .customer-page-button:hover:not(:disabled) {
+          background: var(--bg-tertiary);
+        }
+        .customer-page-button.active {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .customer-page-button.active:hover {
+          background: #006876;
+          color: #ffffff;
+          border-color: #006876;
+        }
+        .page-item.disabled .customer-page-button {
+          color: #006876;
+          cursor: not-allowed;
+          pointer-events: none;
+        }
+      `}</style>
       <div className="page-header">
         <div>
           <h1>Data Pelanggan</h1>
@@ -268,98 +367,101 @@ function PelangganPage({ socket }) {
             )}
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>No</th>
-                <th>Nama</th>
-                <th>Kontak (HP/Email)</th>
-                <th>Paket</th>
-                <th>Harga</th>
-                <th>PPPoE Username</th>
-                <th>Jatuh Tempo</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPelanggan.map(function (item, idx) {
-                // MEMANGGIL FUNGSI DINAMIS DI SINI
-                var statusTabel = hitungStatusDinamis(item.due_date, item.pppoe_status);
+          <>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>No</th>
+                  <th>Nama</th>
+                  <th>Kontak (HP/Email)</th>
+                  <th>Paket</th>
+                  <th>Harga</th>
+                  <th>PPPoE Username</th>
+                  <th>Jatuh Tempo</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCustomers.map(function (item, idx) {
+                  // MEMANGGIL FUNGSI DINAMIS DI SINI
+                  var statusTabel = hitungStatusDinamis(item.due_date, item.pppoe_status);
 
-                return (
-                  <tr key={item.id_pelanggan}>
-                    <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                    <td>
-                      <div style={{ fontWeight: 600 }}>{item.nama}</div>
-                      {item.alamat && (
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          <TemplateIcon name="router" size={13} style={{ marginRight: '6px' }} /> {item.alamat.length > 30 ? item.alamat.substring(0, 30) + '...' : item.alamat}
+                  return (
+                    <tr key={item.id_pelanggan}>
+                      <td style={{ color: 'var(--text-muted)' }}>{(customerPage - 1) * customersPerPage + idx + 1}</td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{item.nama}</div>
+                        {item.alamat && (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            <TemplateIcon name="router" size={13} style={{ marginRight: '6px' }} /> {item.alamat.length > 30 ? item.alamat.substring(0, 30) + '...' : item.alamat}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div><TemplateIcon name="router" size={13} style={{ marginRight: '6px' }} /> {item.no_hp}</div>
+                        {item.email && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}><TemplateIcon name="mail" size={13} style={{ marginRight: '6px' }} /> {item.email}</div>}
+                      </td>
+                      <td>{item.paket || <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
+                      <td>{item.harga ? 'Rp ' + Number(item.harga).toLocaleString('id-ID') : <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
+                      <td>
+                        {item.pppoe_username ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: item.pppoe_status === 'active' ? 'var(--status-hijau)' : 'var(--status-merah)',
+                                boxShadow: item.pppoe_status === 'active' ? '0 0 6px var(--status-hijau)' : 'none',
+                                display: 'inline-block'
+                              }}
+                              title={item.pppoe_status === 'active' ? 'PPPoE Active / Online' : 'PPPoE Inactive / Offline'}
+                            />
+                            <code style={{
+                              background: 'var(--bg-tertiary)',
+                              padding: '2px 8px',
+                              borderRadius: '5px',
+                              fontSize: '0.8rem',
+                              color: item.pppoe_status === 'active' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                            }}>
+                              {item.pppoe_username}
+                            </code>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>-</span>
+                        )}
+                      </td>
+                      <td>{formatTanggal(item.due_date)}</td>
+
+                      {/* IMPLEMENTASI STATUS KE COMPONENT STATUS BADGE */}
+                      <td><StatusBadge status={statusTabel} /></td>
+
+                      <td>
+                        <div className="table-actions">
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={function () { openEditModal(item); }}
+                            title="Edit"
+                          >
+                            <TemplateIcon name="edit" size={14} />
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={function () { setDeleteConfirm(item.id_pelanggan); }}
+                            title="Hapus"
+                          >
+                            <TemplateIcon name="trash" size={14} />
+                          </button>
                         </div>
-                      )}
-                    </td>
-                    <td>
-                      <div><TemplateIcon name="router" size={13} style={{ marginRight: '6px' }} /> {item.no_hp}</div>
-                      {item.email && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}><TemplateIcon name="mail" size={13} style={{ marginRight: '6px' }} /> {item.email}</div>}
-                    </td>
-                    <td>{item.paket || <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
-                    <td>{item.harga ? 'Rp ' + Number(item.harga).toLocaleString('id-ID') : <span style={{ color: 'var(--text-muted)' }}>-</span>}</td>
-                    <td>
-                      {item.pppoe_username ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span
-                            style={{
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: item.pppoe_status === 'active' ? 'var(--status-hijau)' : 'var(--status-merah)',
-                              boxShadow: item.pppoe_status === 'active' ? '0 0 6px var(--status-hijau)' : 'none',
-                              display: 'inline-block'
-                            }}
-                            title={item.pppoe_status === 'active' ? 'PPPoE Active / Online' : 'PPPoE Inactive / Offline'}
-                          />
-                          <code style={{
-                            background: 'var(--bg-tertiary)',
-                            padding: '2px 8px',
-                             borderRadius: '5px',
-                            fontSize: '0.8rem',
-                            color: item.pppoe_status === 'active' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                          }}>
-                            {item.pppoe_username}
-                          </code>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>-</span>
-                      )}
-                    </td>
-                    <td>{formatTanggal(item.due_date)}</td>
-
-                    {/* IMPLEMENTASI STATUS KE COMPONENT STATUS BADGE */}
-                    <td><StatusBadge status={statusTabel} /></td>
-
-                    <td>
-                      <div className="table-actions">
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={function () { openEditModal(item); }}
-                          title="Edit"
-                        >
-                          <TemplateIcon name="edit" size={14} />
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={function () { setDeleteConfirm(item.id_pelanggan); }}
-                          title="Hapus"
-                        >
-                          <TemplateIcon name="trash" size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {renderPagination()}
+          </>
         )}
       </div>
 
