@@ -24,7 +24,7 @@ function PembayaranPage({ socket }) {
 
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
-  var paymentsPerPage = 15;
+  var paymentsPerPage = 10;
   var manualTotalPages = Math.max(1, Math.ceil(approvedManualPayments.length / paymentsPerPage));
   var gatewayTotalPages = Math.max(1, Math.ceil(pendingPayments.length / paymentsPerPage));
   var paginatedManualPayments = approvedManualPayments.slice((manualPage - 1) * paymentsPerPage, manualPage * paymentsPerPage);

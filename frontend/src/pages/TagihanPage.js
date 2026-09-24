@@ -45,7 +45,7 @@ function TagihanPage({ socket, admin }) {
   var token = localStorage.getItem('token');
   var headers = { Authorization: 'Bearer ' + token };
 
-  var pageSize = filterStatus === 'lunas' ? 10 : 15;
+  var pageSize = filterStatus === 'lunas' ? 10 : 10;
   var totalPages = Math.max(1, Math.ceil(tagihanList.length / pageSize));
   var paginatedTagihan = tagihanList.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
