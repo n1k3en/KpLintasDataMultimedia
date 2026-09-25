@@ -2,44 +2,44 @@ var db = require('../config/db');
 
 var PaketLayanan = {
   // Ambil semua paket layanan
-  getAll: function(callback) {
+  getAll: function (callback) {
     var sql = 'SELECT * FROM paket_layanan ORDER BY harga ASC';
-    db.query(sql, function(err, results) {
+    db.query(sql, function (err, results) {
       if (err) return callback(err, null);
       callback(null, results);
     });
   },
 
   // Ambil hanya paket yang aktif
-  getActive: function(callback) {
+  getActive: function (callback) {
     var sql = 'SELECT * FROM paket_layanan WHERE aktif = 1 ORDER BY harga ASC';
-    db.query(sql, function(err, results) {
+    db.query(sql, function (err, results) {
       if (err) return callback(err, null);
       callback(null, results);
     });
   },
 
   // Ambil paket berdasarkan ID
-  getById: function(id, callback) {
+  getById: function (id, callback) {
     var sql = 'SELECT * FROM paket_layanan WHERE id = ?';
-    db.query(sql, [id], function(err, results) {
+    db.query(sql, [id], function (err, results) {
       if (err) return callback(err, null);
       callback(null, results[0] || null);
     });
   },
 
   // Tambah paket baru
-  create: function(data, callback) {
+  create: function (data, callback) {
     var sql = 'INSERT INTO paket_layanan (nama_paket, harga, kecepatan, deskripsi) VALUES (?, ?, ?, ?)';
     var values = [data.nama_paket, data.harga, data.kecepatan || null, data.deskripsi || null];
-    db.query(sql, values, function(err, result) {
+    db.query(sql, values, function (err, result) {
       if (err) return callback(err, null);
       callback(null, { id: result.insertId, ...data });
     });
   },
 
   // Update paket
-  update: function(id, data, callback) {
+  update: function (id, data, callback) {
     var fields = [];
     var values = [];
 
@@ -55,16 +55,16 @@ var PaketLayanan = {
 
     values.push(id);
     var sql = 'UPDATE paket_layanan SET ' + fields.join(', ') + ' WHERE id = ?';
-    db.query(sql, values, function(err, result) {
+    db.query(sql, values, function (err, result) {
       if (err) return callback(err, null);
       callback(null, result);
     });
   },
 
-  // Hapus paket (soft delete)
-  delete: function(id, callback) {
-    var sql = 'UPDATE paket_layanan SET aktif = 0 WHERE id = ?';
-    db.query(sql, [id], function(err, result) {
+  // Hapus paket secara permanen
+  delete: function (id, callback) {
+    var sql = 'DELETE FROM paket_layanan WHERE id = ?';
+    db.query(sql, [id], function (err, result) {
       if (err) return callback(err, null);
       callback(null, result);
     });

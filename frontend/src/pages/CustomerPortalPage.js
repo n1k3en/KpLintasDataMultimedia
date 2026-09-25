@@ -72,8 +72,8 @@ function CustomerPortalPage({ onLogout }) {
   });
 
   var paymentOptions = [
-    { value: 'midtrans', label: 'Bayar Online Instan - Midtrans (QRIS, E-Wallet, VA)', sublabel: 'Otomatis via Midtrans', icon: 'payments', logo: null },
-    { value: 'duitku', label: 'Bayar Online Instan - Duitku (QRIS, VA, E-Wallet, Retail)', sublabel: 'Otomatis via Duitku', icon: 'account_balance_wallet', logo: null },
+    { value: 'midtrans', label: 'Bayar Online Instan -  (QRIS, E-Wallet, VA)', icon: 'payments', logo: null },
+    { value: 'duitku', label: 'Bayar Online Instan -  (QRIS, VA, E-Wallet, Retail)', icon: 'account_balance_wallet', logo: null },
     { value: 'qris', label: 'Manual: QRIS', sublabel: 'Scan & Transfer', icon: 'qr_code_2', logo: null },
     ...dynamicBankOptions
   ].filter(function (option) {
@@ -82,6 +82,7 @@ function CustomerPortalPage({ onLogout }) {
     return gatewayVisible && (manualPaymentEnabled || !isManual);
   });
   var singlePaymentMethod = paymentOptions.length === 1 ? paymentOptions[0].value : null;
+  var singleGatewayPayment = ['midtrans', 'duitku'].indexOf(singlePaymentMethod) !== -1;
 
   useEffect(function () {
     var isManual = paymentMethod === 'qris' || paymentMethod.startsWith('bank_');
@@ -615,17 +616,16 @@ function CustomerPortalPage({ onLogout }) {
     return null;
   }
 
-  function renderPaymentDetail() {
+  function renderPaymentDetail(showDescription) {
     switch (paymentMethod) {
       case 'midtrans':
         return (
           <div style={S.infoBox}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: 'var(--md-primary)' }}>
-              Pembayaran Online Otomatis (Midtrans)
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
-              Bayar menggunakan QRIS, GoPay, ShopeePay, Mandiri Billpayment, BCA/BRI Virtual Account, atau Kartu Kredit. Pembayaran akan terverifikasi secara instan.
-            </p>
+            {showDescription && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
+                Bayar menggunakan QRIS, GoPay, ShopeePay, Mandiri Billpayment, BCA/BRI Virtual Account, atau Kartu Kredit. Pembayaran akan terverifikasi secara instan.
+              </p>
+            )}
             <button type="button" style={{ ...S.btnPrimary, opacity: midtransLoading ? 0.7 : 1 }} onClick={handleMidtransPay} disabled={midtransLoading}>
               {midtransLoading ? (
                 <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>hourglass_top</span> Menghubungkan...</>
@@ -638,14 +638,13 @@ function CustomerPortalPage({ onLogout }) {
       case 'duitku':
         return (
           <div style={S.infoBox}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 8, color: 'var(--md-primary)' }}>
-              Pembayaran Online Otomatis (Duitku Gateway)
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
-              QRIS, Virtual Account, ShopeePay, Indomaret, Kartu Kredit & lebih banyak lagi. Pembayaran terverifikasi otomatis secara instan.
-            </p>
+            {showDescription && (
+              <p style={{ fontSize: '0.78rem', color: 'var(--md-on-surface-variant)', lineHeight: 1.4, marginBottom: 16 }}>
+                QRIS, Virtual Account, ShopeePay, Indomaret, Kartu Kredit & lebih banyak lagi. Pembayaran terverifikasi otomatis secara instan.
+              </p>
+            )}
             <button type="button" style={{ ...S.btnPrimary }} onClick={handleOpenDuitkuModal}>
-              <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Bayar via Duitku</>
+              <><span className="material-symbols-outlined" style={{ fontSize: 18 }}>account_balance_wallet</span> Bayar Sekarang</>
             </button>
           </div>
         );
@@ -868,7 +867,7 @@ function CustomerPortalPage({ onLogout }) {
           </div>
 
           {/* Payment Method */}
-          {billing.status !== 'menunggu_verifikasi' && (
+          {billing.status !== 'menunggu_verifikasi' && !singleGatewayPayment && (
             <div className="portal-card">
               <div className="portal-card-header">
                 <span className="portal-card-title">
@@ -943,7 +942,13 @@ function CustomerPortalPage({ onLogout }) {
                 </div>
               ) : null}
 
-              {renderPaymentDetail()}
+              {renderPaymentDetail(true)}
+            </div>
+          )}
+
+          {billing.status !== 'menunggu_verifikasi' && singleGatewayPayment && (
+            <div style={{ marginTop: 20 }}>
+              {renderPaymentDetail(false)}
             </div>
           )}
 
@@ -1106,7 +1111,7 @@ function CustomerPortalPage({ onLogout }) {
                 'credit_card': 'Kartu Kredit'
               };
               var channel = map[code] || map[code.toLowerCase()] || code;
-              return gateway + (channel ? ' - ' + channel : '') + ' • Lunas Otomatis';
+              return 'Pembyaran Lunas';
             };
             var onlineLabel = getOnlineDesc(pay.bukti_file);
 

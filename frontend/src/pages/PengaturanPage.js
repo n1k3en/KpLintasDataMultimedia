@@ -3,10 +3,11 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { useLogo } from '../context/LogoContext';
 import TemplateIcon from '../components/TemplateIcon';
+import PaketPage from './PaketPage';
 
 function PengaturanPage() {
   var { refreshLogo } = useLogo();
-  var [activeTab, setActiveTab] = useState('umum'); // 'umum', 'mikrotik', 'email', 'midtrans', 'duitku', 'manual', 'reminder'
+  var [activeTab, setActiveTab] = useState('umum'); // 'umum', 'mikrotik', 'email', 'midtrans', 'duitku', 'manual', 'reminder', 'paket'
   var [saving, setSaving] = useState(false);
   var [loadingConfig, setLoadingConfig] = useState(true);
   var [successMsg, setSuccessMsg] = useState('');
@@ -749,6 +750,7 @@ function PengaturanPage() {
             { id: 'midtrans', label: 'Midtrans Gateway', icon: 'shield' },
             { id: 'duitku', label: 'Duitku Gateway', icon: 'account_balance_wallet' },
             { id: 'manual', label: 'Pembayaran Manual', icon: 'payments' },
+            { id: 'paket', label: 'Paket Layanan', icon: 'inventory_2' },
             { id: 'reminder', label: 'Pengingat Tagihan', icon: 'notifications' }
 
           ].map(function (tab) {
@@ -806,854 +808,862 @@ function PengaturanPage() {
         </div>
 
         {/* Right Side Content Panel */}
-        <div style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '30px',
-          boxShadow: 'var(--shadow-sm)'
-        }} className="animate-fadeIn">
+        {activeTab === 'paket' ? (
+          <PaketPage />
+        ) : (
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            padding: '30px',
+            boxShadow: 'var(--shadow-sm)'
+          }} className="animate-fadeIn">
 
-          <form onSubmit={handleSave}>
+            <form onSubmit={handleSave}>
 
-            {/* 1. UMUM & PROFIL TAB */}
-            {activeTab === 'umum' && (
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Profil Perusahaan & Umum</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Konfigurasi identitas layanan ISP untuk kwitansi/invoice tagihan pelanggan.
-                </p>
+              {/* 1. UMUM & PROFIL TAB */}
+              {activeTab === 'umum' && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Profil Perusahaan & Umum</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Konfigurasi identitas layanan ISP untuk kwitansi/invoice tagihan pelanggan.
+                  </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                  <div className="form-group">
-                    <label>Nama Layanan ISP *</label>
-                    <input
-                      type="text"
-                      value={umum.namaIsp}
-                      onChange={function (e) { setUmum({ ...umum, namaIsp: e.target.value }); }}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Email Customer Service *</label>
-                    <input
-                      type="email"
-                      value={umum.emailCs}
-                      onChange={function (e) { setUmum({ ...umum, emailCs: e.target.value }); }}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Nomor Telepon / WhatsApp CS *</label>
-                  <input
-                    type="text"
-                    value={umum.telpCs}
-                    onChange={function (e) { setUmum({ ...umum, telpCs: e.target.value }); }}
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label>Alamat Kantor Utama</label>
-                  <textarea
-                    rows="3"
-                    value={umum.alamat}
-                    onChange={function (e) { setUmum({ ...umum, alamat: e.target.value }); }}
-                  />
-                </div>
-
-                {/* Logo Upload Section */}
-                <label style={{ fontSize: '0.82rem', fontWeight: '700', marginBottom: '8px', display: 'block', color: 'var(--text-secondary)' }}>Logo Perusahaan</label>
-
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-                  <div style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '12px',
-                    border: '1.5px solid var(--border-color)',
-                    background: 'var(--bg-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    flexShrink: 0
-                  }}>
-                    {(logoPreview || currentLogo) ? (
-                      <img
-                        src={logoPreview || currentLogo}
-                        alt="Logo Perusahaan"
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '8px' }}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                    <div className="form-group">
+                      <label>Nama Layanan ISP *</label>
+                      <input
+                        type="text"
+                        value={umum.namaIsp}
+                        onChange={function (e) { setUmum({ ...umum, namaIsp: e.target.value }); }}
+                        required
                       />
-                    ) : (
-                      <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: 'var(--text-muted)' }}>image</span>
-                    )}
-                  </div>
-
-                  <div style={{ flex: 1 }}>
-                    <div
-                      onClick={function () { if (!uploading) logoInputRef.current.click(); }}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      style={{
-                        border: dragOver ? '2px dashed var(--primary)' : '1.5px dashed var(--border-color)',
-                        borderRadius: '8px',
-                        padding: '20px',
-                        textAlign: 'center',
-                        background: dragOver ? 'var(--primary-glow)' : 'var(--bg-secondary)',
-                        cursor: uploading ? 'not-allowed' : 'pointer',
-                        transition: 'all 0.2s ease',
-                        opacity: uploading ? 0.6 : 1
-                      }}
-                    >
+                    </div>
+                    <div className="form-group">
+                      <label>Email Customer Service *</label>
                       <input
-                        ref={logoInputRef}
-                        type="file"
-                        accept="image/png,image/jpeg,image/jpg"
-                        style={{ display: 'none' }}
-                        onChange={function (e) {
-                          if (e.target.files && e.target.files[0]) {
-                            handleLogoSelect(e.target.files[0]);
-                          }
-                        }}
+                        type="email"
+                        value={umum.emailCs}
+                        onChange={function (e) { setUmum({ ...umum, emailCs: e.target.value }); }}
+                        required
                       />
-                      <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: dragOver ? 'var(--primary)' : 'var(--text-muted)', marginBottom: '4px' }}>
-                        cloud_upload
-                      </span>
-                      <div style={{ fontSize: '0.85rem', fontWeight: '700' }}>
-                        {logoFile ? logoFile.name : 'Klik atau seret file ke sini'}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Format PNG/JPG maksimal 2MB
-                      </div>
                     </div>
-
-                    {logoFile && (
-                      <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          onClick={handleLogoUpload}
-                          disabled={uploading}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                        >
-                          {uploading ? (
-                            <><TemplateIcon name="loading" size={14} /> Mengunggah...</>
-                          ) : (
-                            <><span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>upload</span> Simpan Logo</>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          onClick={handleLogoCancelSelect}
-                          disabled={uploading}
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    )}
-
-                    {!logoFile && !isDefaultLogo && currentLogo && (
-                      <button
-                        type="button"
-                        onClick={handleLogoReset}
-                        style={{
-                          marginTop: '10px',
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          fontSize: '0.76rem',
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          padding: 0
-                        }}
-                      >
-                        Reset ke logo default
-                      </button>
-                    )}
                   </div>
-                </div>
-              </div>
-            )}
 
-            {/* 2. MIKROTIK ROUTER TAB */}
-            {activeTab === 'mikrotik' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>Koneksi Mikrotik Router</h3>
-                  <span className={'status-badge ' + (routerStatus === 'connected' ? 'hijau' : (routerStatus === 'error' ? 'merah' : 'abu'))} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: routerStatus === 'connected' ? 'var(--status-hijau)' : (routerStatus === 'error' ? 'var(--status-merah)' : '#aaa'),
-                      display: 'inline-block'
-                    }} />
-                    {routerStatus === 'connected' ? 'Terhubung' : (routerStatus === 'error' ? 'Gagal Terhubung' : 'Belum Diuji')}
-                  </span>
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Atur kredensial router Mikrotik (`MIKROTIK_HOST`, `MIKROTIK_USER`, `MIKROTIK_PASS`, `MIKROTIK_PORT`) untuk pengaktifan dan isolir otomatis rahasia PPPoE.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                  <div className="form-group">
-                    <label>IP Address / Hostname Router *</label>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Nomor Telepon / WhatsApp CS *</label>
                     <input
                       type="text"
-                      value={mikrotik.host}
-                      placeholder="e.g. 192.168.50.1"
-                      onChange={function (e) { setMikrotik({ ...mikrotik, host: e.target.value }); }}
+                      value={umum.telpCs}
+                      onChange={function (e) { setUmum({ ...umum, telpCs: e.target.value }); }}
                       required
                     />
                   </div>
-                  <div className="form-group">
-                    <label>API Port *</label>
-                    <input
-                      type="text"
-                      value={mikrotik.port}
-                      placeholder="e.g. 8728"
-                      onChange={function (e) { setMikrotik({ ...mikrotik, port: e.target.value }); }}
-                      required
+
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label>Alamat Kantor Utama</label>
+                    <textarea
+                      rows="3"
+                      value={umum.alamat}
+                      onChange={function (e) { setUmum({ ...umum, alamat: e.target.value }); }}
                     />
                   </div>
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
-                  <div className="form-group">
-                    <label>Username API Mikrotik *</label>
-                    <input
-                      type="text"
-                      value={mikrotik.username}
-                      placeholder="e.g. api_isp"
-                      onChange={function (e) { setMikrotik({ ...mikrotik, username: e.target.value }); }}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Password API Mikrotik *</label>
-                    <input
-                      type="password"
-                      value={mikrotik.password}
-                      placeholder="Password API Mikrotik"
-                      onChange={function (e) { setMikrotik({ ...mikrotik, password: e.target.value }); }}
-                      required
-                    />
-                  </div>
-                </div>
+                  {/* Logo Upload Section */}
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', marginBottom: '8px', display: 'block', color: 'var(--text-secondary)' }}>Logo Perusahaan</label>
 
-                <div style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '24px'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Uji Sambungan API Mikrotik</span>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Pastikan service api pada Mikrotik aktif (default port 8728).</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={handleCheckRouter}
-                    disabled={checkingRouter}
-                  >
-                    {checkingRouter ? 'Menghubungkan...' : 'Tes Koneksi'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 3. EMAIL SMTP TAB */}
-            {activeTab === 'email' && (
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Konfigurasi Email SMTP (Nodemailer)</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Atur kredensial email (`EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`) untuk mengalirkan OTP login dan invoice kwitansi PDF ke email pelanggan.
-                </p>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Email Pengirim (EMAIL_USER) *</label>
-                  <input
-                    type="email"
-                    value={emailSmtp.user}
-                    placeholder="e.g. 24percobaan24@gmail.com"
-                    onChange={function (e) { setEmailSmtp({ ...emailSmtp, user: e.target.value }); }}
-                    required
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Alamat Gmail yang digunakan untuk mengirim email.
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Password Aplikasi Gmail (EMAIL_PASS) *</label>
-                  <input
-                    type="password"
-                    value={emailSmtp.pass}
-                    placeholder="e.g. jacb ramz jsmh urkf"
-                    onChange={function (e) { setEmailSmtp({ ...emailSmtp, pass: e.target.value }); }}
-                    required
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Gunakan <strong>App Password</strong> 16 digit yang dibuat pada Google Account &gt; Security &gt; 2-Step Verification.
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label>Nama Tampilan Pengirim (EMAIL_FROM) *</label>
-                  <input
-                    type="text"
-                    value={emailSmtp.from}
-                    placeholder='e.g. ESP Lintas Data <24percobaan24@gmail.com>'
-                    onChange={function (e) { setEmailSmtp({ ...emailSmtp, from: e.target.value }); }}
-                    required
-                  />
-                </div>
-
-                <div style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  marginBottom: '24px'
-                }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px' }}>Uji Coba Pengiriman Email</div>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <input
-                      type="email"
-                      placeholder="Masukkan email tujuan pengujian..."
-                      value={emailSmtp.testTarget}
-                      onChange={function (e) { setEmailSmtp({ ...emailSmtp, testTarget: e.target.value }); }}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleTestEmail}
-                      disabled={testingEmail}
-                    >
-                      {testingEmail ? 'Mengirim...' : 'Tes Kirim Email'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 4. MIDTRANS TAB */}
-            {activeTab === 'midtrans' && (
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Midtrans Payment Gateway</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Konfigurasi kredensial API Midtrans Snap SDK untuk pembayaran otomatis via Snap Pop-Up.
-                </p>
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Environment Mode</label>
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
-                      <input
-                        type="radio"
-                        name="midtransEnv"
-                        checked={midtrans.isSandbox}
-                        onChange={function () { setMidtrans({ ...midtrans, isSandbox: true }); }}
-                        style={{ width: 'auto', cursor: 'pointer' }}
-                      /> Sandbox (Simulasi Uji Coba)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
-                      <input
-                        type="radio"
-                        name="midtransEnv"
-                        checked={!midtrans.isSandbox}
-                        onChange={function () { setMidtrans({ ...midtrans, isSandbox: false }); }}
-                        style={{ width: 'auto', cursor: 'pointer' }}
-                      /> Production (Live / Asli)
-                    </label>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Merchant ID</label>
-                  <input
-                    type="text"
-                    value={midtrans.merchantId}
-                    placeholder="e.g. M1094827"
-                    onChange={function (e) { setMidtrans({ ...midtrans, merchantId: e.target.value }); }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Client Key *</label>
-                  <input
-                    type="text"
-                    value={midtrans.clientKey}
-                    placeholder="e.g. SB-Mid-client-XXXXX"
-                    onChange={function (e) { setMidtrans({ ...midtrans, clientKey: e.target.value }); }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label>Server Key *</label>
-                  <input
-                    type="password"
-                    value={midtrans.serverKey}
-                    placeholder="e.g. SB-Mid-server-XXXXX"
-                    onChange={function (e) { setMidtrans({ ...midtrans, serverKey: e.target.value }); }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 5. DUITKU TAB */}
-            {activeTab === 'duitku' && (
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Duitku Payment Gateway</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Konfigurasi API Duitku Payment Gateway untuk pembayaran instan via QRIS, Virtual Account, E-Wallet, dan Minimarket.
-                </p>
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Environment Mode</label>
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
-                      <input
-                        type="radio"
-                        name="duitkuEnv"
-                        checked={duitku.isSandbox}
-                        onChange={function () { setDuitku({ ...duitku, isSandbox: true }); }}
-                        style={{ width: 'auto', cursor: 'pointer' }}
-                      /> Sandbox (Simulasi Uji Coba)
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
-                      <input
-                        type="radio"
-                        name="duitkuEnv"
-                        checked={!duitku.isSandbox}
-                        onChange={function () { setDuitku({ ...duitku, isSandbox: false }); }}
-                        style={{ width: 'auto', cursor: 'pointer' }}
-                      /> Production (Live / Asli)
-                    </label>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Kode Merchant Duitku (DUITKU_MERCHANT_CODE) *</label>
-                  <input
-                    type="text"
-                    value={duitku.merchantCode}
-                    placeholder="e.g. D12345"
-                    onChange={function (e) { setDuitku({ ...duitku, merchantCode: e.target.value }); }}
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Kode Merchant resmi yang tertera pada Dashboard Duitku.
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>API Key / Secret Key Duitku (DUITKU_API_KEY) *</label>
-                  <input
-                    type="password"
-                    value={duitku.apiKey}
-                    placeholder="e.g. 8a9b7c6d5e4f3a2b1c"
-                    onChange={function (e) { setDuitku({ ...duitku, apiKey: e.target.value }); }}
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Kunci rahasia API Duitku yang digunakan untuk menghasilkan Signature MD5 transaksi & webhook.
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label>Webhook / Callback URL (APP_URL) *</label>
-                  <input
-                    type="text"
-                    value={duitku.appUrl}
-                    placeholder="e.g. https://subdomain.ngrok-free.dev"
-                    onChange={function (e) { setDuitku({ ...duitku, appUrl: e.target.value }); }}
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    URL publik (ngrok) agar server Duitku & Midtrans dapat mengirim callback pembayaran ke backend Anda. Contoh: <strong>https://abcdef.ngrok-free.dev</strong>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 6. MANUAL PAYMENT TAB */}
-            {activeTab === 'manual' && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Pembayaran Manual (QRIS & Rekening Bank)</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0 }}>
-                      Atur aktivasi metode manual, upload kode QRIS baru, dan kelola daftar rekening bank tujuan transfer pelanggan.
-                    </p>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-secondary)', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Status Pembayaran Manual:</span>
-                    {renderQuickSwitch(manualPaymentEnabled, handleManualPaymentToggle)}
-                    <span style={{ fontSize: '0.8rem', fontWeight: '700', color: manualPaymentEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
-                      {manualPaymentEnabled ? 'AKTIF' : 'NONAKTIF'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Section 1: Pengaturan QRIS */}
-                <div style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '20px',
-                  marginBottom: '28px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>1. Kode QRIS Pembayaran</h4>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        QRIS ini akan ditampilkan saat pelanggan memilih metode pembayaran QRIS di portal pelanggan.
-                      </span>
-                    </div>
-                    {!isDefaultQris && (
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleQrisReset}
-                        style={{ fontSize: '0.78rem' }}
-                      >
-                        Reset QRIS ke Default
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'start' }}>
-                    {/* Preview Current QRIS */}
+                  <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
                     <div style={{
-                      width: '180px',
-                      padding: '12px',
-                      background: '#ffffff',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      textAlign: 'center',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                      width: '120px',
+                      height: '120px',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--border-color)',
+                      background: 'var(--bg-secondary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
                     }}>
-                      <img
-                        src={qrisPreview || currentQris}
-                        alt="QRIS Preview"
-                        style={{ width: '100%', height: '156px', objectFit: 'contain', display: 'block', borderRadius: '4px' }}
-                      />
-                      <div style={{ marginTop: '8px', fontSize: '0.72rem', fontWeight: '700', color: qrisPreview ? '#e65100' : (isDefaultQris ? 'var(--text-muted)' : 'var(--primary)') }}>
-                        {qrisPreview ? 'Preview File Dipilih' : (isDefaultQris ? 'QRIS Default' : 'QRIS Kustom Aktif')}
-                      </div>
+                      {(logoPreview || currentLogo) ? (
+                        <img
+                          src={logoPreview || currentLogo}
+                          alt="Logo Perusahaan"
+                          style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '8px' }}
+                        />
+                      ) : (
+                        <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: 'var(--text-muted)' }}>image</span>
+                      )}
                     </div>
 
-                    {/* Upload QRIS Dropzone */}
-                    <div>
-                      <input
-                        type="file"
-                        ref={qrisInputRef}
-                        accept="image/png, image/jpeg, image/jpg"
-                        style={{ display: 'none' }}
-                        onChange={function (e) {
-                          if (e.target.files && e.target.files[0]) {
-                            handleQrisSelect(e.target.files[0]);
-                          }
-                        }}
-                      />
+                    <div style={{ flex: 1 }}>
                       <div
-                        onDragOver={function (e) { e.preventDefault(); setDragOverQris(true); }}
-                        onDragLeave={function (e) { e.preventDefault(); setDragOverQris(false); }}
-                        onDrop={function (e) {
-                          e.preventDefault();
-                          setDragOverQris(false);
-                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                            handleQrisSelect(e.dataTransfer.files[0]);
-                          }
-                        }}
-                        onClick={function () { if (qrisInputRef.current) qrisInputRef.current.click(); }}
+                        onClick={function () { if (!uploading) logoInputRef.current.click(); }}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
                         style={{
-                          border: dragOverQris ? '2px dashed var(--primary)' : '2px dashed var(--border-color)',
+                          border: dragOver ? '2px dashed var(--primary)' : '1.5px dashed var(--border-color)',
                           borderRadius: '8px',
-                          padding: '24px 20px',
+                          padding: '20px',
                           textAlign: 'center',
-                          cursor: 'pointer',
-                          backgroundColor: dragOverQris ? 'rgba(0, 104, 118, 0.05)' : 'var(--card-bg)',
-                          transition: 'all 0.2s ease'
+                          background: dragOver ? 'var(--primary-glow)' : 'var(--bg-secondary)',
+                          cursor: uploading ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s ease',
+                          opacity: uploading ? 0.6 : 1
                         }}
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '36px', color: 'var(--primary)', marginBottom: '8px', display: 'block' }}>
-                          qr_code_scanner
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg"
+                          style={{ display: 'none' }}
+                          onChange={function (e) {
+                            if (e.target.files && e.target.files[0]) {
+                              handleLogoSelect(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: dragOver ? 'var(--primary)' : 'var(--text-muted)', marginBottom: '4px' }}>
+                          cloud_upload
                         </span>
-                        <div style={{ fontSize: '0.88rem', fontWeight: '700', marginBottom: '4px' }}>
-                          Klik atau seret file gambar QRIS baru ke sini
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700' }}>
+                          {logoFile ? logoFile.name : 'Klik atau seret file ke sini'}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                          Format file: PNG atau JPG (Maksimal 2MB). Rekomendasi rasio 1:1 persegi.
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Format PNG/JPG maksimal 2MB
                         </div>
                       </div>
 
-                      {qrisFile && (
-                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px', alignItems: 'center' }}>
+                      {logoFile && (
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
-                            onClick={handleQrisUpload}
-                            disabled={uploadingQris}
+                            onClick={handleLogoUpload}
+                            disabled={uploading}
+                            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                           >
-                            {uploadingQris ? 'Mengunggah QRIS...' : 'Simpan QRIS Baru'}
+                            {uploading ? (
+                              <><TemplateIcon name="loading" size={14} /> Mengunggah...</>
+                            ) : (
+                              <><span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>upload</span> Simpan Logo</>
+                            )}
                           </button>
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            onClick={handleQrisCancelSelect}
-                            disabled={uploadingQris}
+                            onClick={handleLogoCancelSelect}
+                            disabled={uploading}
                           >
                             Batal
                           </button>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            {qrisFile.name} ({(qrisFile.size / 1024).toFixed(1)} KB)
-                          </span>
                         </div>
+                      )}
+
+                      {!logoFile && !isDefaultLogo && currentLogo && (
+                        <button
+                          type="button"
+                          onClick={handleLogoReset}
+                          style={{
+                            marginTop: '10px',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            fontSize: '0.76rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            padding: 0
+                          }}
+                        >
+                          Reset ke logo default
+                        </button>
                       )}
                     </div>
                   </div>
                 </div>
+              )}
 
-                {/* Section 2: Daftar Rekening Pembayaran */}
-                <div style={{
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '20px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
-                    <div>
-                      <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>2. Rekening Bank Pembayaran</h4>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        Daftar rekening bank / e-wallet yang ditampilkan kepada pelanggan untuk transfer manual.
-                      </span>
+              {/* 2. MIKROTIK ROUTER TAB */}
+              {activeTab === 'mikrotik' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '800' }}>Koneksi Mikrotik Router</h3>
+                    <span className={'status-badge ' + (routerStatus === 'connected' ? 'hijau' : (routerStatus === 'error' ? 'merah' : 'abu'))} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: routerStatus === 'connected' ? 'var(--status-hijau)' : (routerStatus === 'error' ? 'var(--status-merah)' : '#aaa'),
+                        display: 'inline-block'
+                      }} />
+                      {routerStatus === 'connected' ? 'Terhubung' : (routerStatus === 'error' ? 'Gagal Terhubung' : 'Belum Diuji')}
+                    </span>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Atur kredensial router Mikrotik (`MIKROTIK_HOST`, `MIKROTIK_USER`, `MIKROTIK_PASS`, `MIKROTIK_PORT`) untuk pengaktifan dan isolir otomatis rahasia PPPoE.
+                  </p>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                    <div className="form-group">
+                      <label>IP Address / Hostname Router *</label>
+                      <input
+                        type="text"
+                        value={mikrotik.host}
+                        placeholder="e.g. 192.168.50.1"
+                        onChange={function (e) { setMikrotik({ ...mikrotik, host: e.target.value }); }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>API Port *</label>
+                      <input
+                        type="text"
+                        value={mikrotik.port}
+                        placeholder="e.g. 8728"
+                        onChange={function (e) { setMikrotik({ ...mikrotik, port: e.target.value }); }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
+                    <div className="form-group">
+                      <label>Username API Mikrotik *</label>
+                      <input
+                        type="text"
+                        value={mikrotik.username}
+                        placeholder="e.g. api_isp"
+                        onChange={function (e) { setMikrotik({ ...mikrotik, username: e.target.value }); }}
+                        required
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Password API Mikrotik *</label>
+                      <input
+                        type="password"
+                        value={mikrotik.password}
+                        placeholder="Password API Mikrotik"
+                        onChange={function (e) { setMikrotik({ ...mikrotik, password: e.target.value }); }}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Uji Sambungan API Mikrotik</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Pastikan service api pada Mikrotik aktif (default port 8728).</span>
                     </div>
                     <button
                       type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={handleOpenAddRekening}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleCheckRouter}
+                      disabled={checkingRouter}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
-                      Tambah Rekening
+                      {checkingRouter ? 'Menghubungkan...' : 'Tes Koneksi'}
                     </button>
                   </div>
+                </div>
+              )}
 
-                  {loadingRekening ? (
-                    <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Memuat daftar rekening...
+              {/* 3. EMAIL SMTP TAB */}
+              {activeTab === 'email' && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Konfigurasi Email SMTP (Nodemailer)</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Atur kredensial email (`EMAIL_USER`, `EMAIL_PASS`, `EMAIL_FROM`) untuk mengalirkan OTP login dan invoice kwitansi PDF ke email pelanggan.
+                  </p>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Email Pengirim (EMAIL_USER) *</label>
+                    <input
+                      type="email"
+                      value={emailSmtp.user}
+                      placeholder="e.g. 24percobaan24@gmail.com"
+                      onChange={function (e) { setEmailSmtp({ ...emailSmtp, user: e.target.value }); }}
+                      required
+                    />
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Alamat Gmail yang digunakan untuk mengirim email.
                     </div>
-                  ) : rekeningList.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '32px 20px', border: '1px dashed var(--border-color)', borderRadius: '8px', background: 'var(--card-bg)' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>
-                        account_balance
-                      </span>
-                      <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>Belum Ada Rekening Pembayaran</div>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                        Tambahkan rekening bank atau e-wallet tujuan transfer untuk pelanggan.
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Password Aplikasi Gmail (EMAIL_PASS) *</label>
+                    <input
+                      type="password"
+                      value={emailSmtp.pass}
+                      placeholder="e.g. jacb ramz jsmh urkf"
+                      onChange={function (e) { setEmailSmtp({ ...emailSmtp, pass: e.target.value }); }}
+                      required
+                    />
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Gunakan <strong>App Password</strong> 16 digit yang dibuat pada Google Account &gt; Security &gt; 2-Step Verification.
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label>Nama Tampilan Pengirim (EMAIL_FROM) *</label>
+                    <input
+                      type="text"
+                      value={emailSmtp.from}
+                      placeholder='e.g. ESP Lintas Data <24percobaan24@gmail.com>'
+                      onChange={function (e) { setEmailSmtp({ ...emailSmtp, from: e.target.value }); }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: '700', marginBottom: '8px' }}>Uji Coba Pengiriman Email</div>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <input
+                        type="email"
+                        placeholder="Masukkan email tujuan pengujian..."
+                        value={emailSmtp.testTarget}
+                        onChange={function (e) { setEmailSmtp({ ...emailSmtp, testTarget: e.target.value }); }}
+                        style={{ flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleTestEmail}
+                        disabled={testingEmail}
+                      >
+                        {testingEmail ? 'Mengirim...' : 'Tes Kirim Email'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. MIDTRANS TAB */}
+              {activeTab === 'midtrans' && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Midtrans Payment Gateway</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Konfigurasi kredensial API Midtrans Snap SDK untuk pembayaran otomatis via Snap Pop-Up.
+                  </p>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Environment Mode</label>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
+                        <input
+                          type="radio"
+                          name="midtransEnv"
+                          checked={midtrans.isSandbox}
+                          onChange={function () { setMidtrans({ ...midtrans, isSandbox: true }); }}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        /> Sandbox (Simulasi Uji Coba)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
+                        <input
+                          type="radio"
+                          name="midtransEnv"
+                          checked={!midtrans.isSandbox}
+                          onChange={function () { setMidtrans({ ...midtrans, isSandbox: false }); }}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        /> Production (Live / Asli)
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Merchant ID</label>
+                    <input
+                      type="text"
+                      value={midtrans.merchantId}
+                      placeholder="e.g. M1094827"
+                      onChange={function (e) { setMidtrans({ ...midtrans, merchantId: e.target.value }); }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Client Key *</label>
+                    <input
+                      type="text"
+                      value={midtrans.clientKey}
+                      placeholder="e.g. SB-Mid-client-XXXXX"
+                      onChange={function (e) { setMidtrans({ ...midtrans, clientKey: e.target.value }); }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label>Server Key *</label>
+                    <input
+                      type="password"
+                      value={midtrans.serverKey}
+                      placeholder="e.g. SB-Mid-server-XXXXX"
+                      onChange={function (e) { setMidtrans({ ...midtrans, serverKey: e.target.value }); }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* 5. DUITKU TAB */}
+              {activeTab === 'duitku' && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Duitku Payment Gateway</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Konfigurasi API Duitku Payment Gateway untuk pembayaran instan via QRIS, Virtual Account, E-Wallet, dan Minimarket.
+                  </p>
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Environment Mode</label>
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
+                        <input
+                          type="radio"
+                          name="duitkuEnv"
+                          checked={duitku.isSandbox}
+                          onChange={function () { setDuitku({ ...duitku, isSandbox: true }); }}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        /> Sandbox (Simulasi Uji Coba)
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, fontWeight: '600' }}>
+                        <input
+                          type="radio"
+                          name="duitkuEnv"
+                          checked={!duitku.isSandbox}
+                          onChange={function () { setDuitku({ ...duitku, isSandbox: false }); }}
+                          style={{ width: 'auto', cursor: 'pointer' }}
+                        /> Production (Live / Asli)
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Kode Merchant Duitku (DUITKU_MERCHANT_CODE) *</label>
+                    <input
+                      type="text"
+                      value={duitku.merchantCode}
+                      placeholder="e.g. D12345"
+                      onChange={function (e) { setDuitku({ ...duitku, merchantCode: e.target.value }); }}
+                    />
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Kode Merchant resmi yang tertera pada Dashboard Duitku.
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>API Key / Secret Key Duitku (DUITKU_API_KEY) *</label>
+                    <input
+                      type="password"
+                      value={duitku.apiKey}
+                      placeholder="e.g. 8a9b7c6d5e4f3a2b1c"
+                      onChange={function (e) { setDuitku({ ...duitku, apiKey: e.target.value }); }}
+                    />
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Kunci rahasia API Duitku yang digunakan untuk menghasilkan Signature MD5 transaksi & webhook.
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '24px' }}>
+                    <label>Webhook / Callback URL (APP_URL) *</label>
+                    <input
+                      type="text"
+                      value={duitku.appUrl}
+                      placeholder="e.g. https://subdomain.ngrok-free.dev"
+                      onChange={function (e) { setDuitku({ ...duitku, appUrl: e.target.value }); }}
+                    />
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      URL publik (ngrok) agar server Duitku & Midtrans dapat mengirim callback pembayaran ke backend Anda. Contoh: <strong>https://abcdef.ngrok-free.dev</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 6. MANUAL PAYMENT TAB */}
+              {activeTab === 'manual' && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Pembayaran Manual (QRIS & Rekening Bank)</h3>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: 0 }}>
+                        Atur aktivasi metode manual, upload kode QRIS baru, dan kelola daftar rekening bank tujuan transfer pelanggan.
                       </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg-secondary)', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>Status Pembayaran Manual:</span>
+                      {renderQuickSwitch(manualPaymentEnabled, handleManualPaymentToggle)}
+                      <span style={{ fontSize: '0.8rem', fontWeight: '700', color: manualPaymentEnabled ? 'var(--primary)' : 'var(--text-muted)' }}>
+                        {manualPaymentEnabled ? 'AKTIF' : 'NONAKTIF'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Section 1: Pengaturan QRIS */}
+                  <div style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '20px',
+                    marginBottom: '28px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>1. Kode QRIS Pembayaran</h4>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          QRIS ini akan ditampilkan saat pelanggan memilih metode pembayaran QRIS di portal pelanggan.
+                        </span>
+                      </div>
+                      {!isDefaultQris && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleQrisReset}
+                          style={{ fontSize: '0.78rem' }}
+                        >
+                          Reset QRIS ke Default
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '20px', alignItems: 'start' }}>
+                      {/* Preview Current QRIS */}
+                      <div style={{
+                        width: '180px',
+                        padding: '12px',
+                        background: '#ffffff',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        textAlign: 'center',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                      }}>
+                        <img
+                          src={qrisPreview || currentQris}
+                          alt="QRIS Preview"
+                          style={{ width: '100%', height: '156px', objectFit: 'contain', display: 'block', borderRadius: '4px' }}
+                        />
+                        <div style={{ marginTop: '8px', fontSize: '0.72rem', fontWeight: '700', color: qrisPreview ? '#e65100' : (isDefaultQris ? 'var(--text-muted)' : 'var(--primary)') }}>
+                          {qrisPreview ? 'Preview File Dipilih' : (isDefaultQris ? 'QRIS Default' : 'QRIS Kustom Aktif')}
+                        </div>
+                      </div>
+
+                      {/* Upload QRIS Dropzone */}
+                      <div>
+                        <input
+                          type="file"
+                          ref={qrisInputRef}
+                          accept="image/png, image/jpeg, image/jpg"
+                          style={{ display: 'none' }}
+                          onChange={function (e) {
+                            if (e.target.files && e.target.files[0]) {
+                              handleQrisSelect(e.target.files[0]);
+                            }
+                          }}
+                        />
+                        <div
+                          onDragOver={function (e) { e.preventDefault(); setDragOverQris(true); }}
+                          onDragLeave={function (e) { e.preventDefault(); setDragOverQris(false); }}
+                          onDrop={function (e) {
+                            e.preventDefault();
+                            setDragOverQris(false);
+                            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                              handleQrisSelect(e.dataTransfer.files[0]);
+                            }
+                          }}
+                          onClick={function () { if (qrisInputRef.current) qrisInputRef.current.click(); }}
+                          style={{
+                            border: dragOverQris ? '2px dashed var(--primary)' : '2px dashed var(--border-color)',
+                            borderRadius: '8px',
+                            padding: '24px 20px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            backgroundColor: dragOverQris ? 'rgba(0, 104, 118, 0.05)' : 'var(--card-bg)',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '36px', color: 'var(--primary)', marginBottom: '8px', display: 'block' }}>
+                            qr_code_scanner
+                          </span>
+                          <div style={{ fontSize: '0.88rem', fontWeight: '700', marginBottom: '4px' }}>
+                            Klik atau seret file gambar QRIS baru ke sini
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                            Format file: PNG atau JPG (Maksimal 2MB). Rekomendasi rasio 1:1 persegi.
+                          </div>
+                        </div>
+
+                        {qrisFile && (
+                          <div style={{ display: 'flex', gap: '10px', marginTop: '12px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={handleQrisUpload}
+                              disabled={uploadingQris}
+                            >
+                              {uploadingQris ? 'Mengunggah QRIS...' : 'Simpan QRIS Baru'}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              onClick={handleQrisCancelSelect}
+                              disabled={uploadingQris}
+                            >
+                              Batal
+                            </button>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {qrisFile.name} ({(qrisFile.size / 1024).toFixed(1)} KB)
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Daftar Rekening Pembayaran */}
+                  <div style={{
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    padding: '20px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+                      <div>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '700', margin: '0 0 4px 0' }}>2. Rekening Bank Pembayaran</h4>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          Daftar rekening bank / e-wallet yang ditampilkan kepada pelanggan untuk transfer manual.
+                        </span>
+                      </div>
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
                         onClick={handleOpenAddRekening}
+                        style={{ 
+                            background: 'var(--md-primary-fixed)',
+                            color: 'var(--md-on-primary-fixed-variant)',
+                            fontWeight: '700'
+                         }}
                       >
-                        + Tambah Rekening Pertama
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add</span>
+                        Tambah Rekening
                       </button>
                     </div>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-                      {rekeningList.map(function (rek) {
-                        return (
-                          <div
-                            key={rek.id}
-                            style={{
-                              background: 'var(--card-bg, #ffffff)',
-                              border: '1px solid var(--border-color)',
-                              borderRadius: '8px',
-                              padding: '16px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-                              opacity: rek.is_active ? 1 : 0.7
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  fontWeight: '800',
-                                  textTransform: 'uppercase',
-                                  letterSpacing: '0.5px',
-                                  color: 'var(--primary)',
-                                  background: 'rgba(0, 104, 118, 0.08)',
-                                  padding: '3px 8px',
-                                  borderRadius: '4px'
-                                }}>
-                                  {rek.nama_bank}
-                                </span>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }} title="Ubah status aktif">
-                                  <input
-                                    type="checkbox"
-                                    checked={!!rek.is_active}
-                                    onChange={function () { handleToggleActiveRekening(rek); }}
-                                    style={{ cursor: 'pointer' }}
-                                  />
-                                  <span style={{ fontSize: '0.72rem', fontWeight: '700', color: rek.is_active ? '#2e7d32' : 'var(--text-muted)' }}>
-                                    {rek.is_active ? 'Aktif' : 'Nonaktif'}
+
+                    {loadingRekening ? (
+                      <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        Memuat daftar rekening...
+                      </div>
+                    ) : rekeningList.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '32px 20px', border: '1px dashed var(--border-color)', borderRadius: '8px', background: 'var(--card-bg)' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '40px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>
+                          account_balance
+                        </span>
+                        <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '4px' }}>Belum Ada Rekening Pembayaran</div>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                          Tambahkan rekening bank atau e-wallet tujuan transfer untuk pelanggan.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={handleOpenAddRekening}
+                        >
+                          + Tambah Rekening Pertama
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
+                        {rekeningList.map(function (rek) {
+                          return (
+                            <div
+                              key={rek.id}
+                              style={{
+                                background: 'var(--card-bg, #ffffff)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '8px',
+                                padding: '16px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                                opacity: rek.is_active ? 1 : 0.7
+                              }}
+                            >
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                  <span style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: '800',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    color: 'var(--primary)',
+                                    background: 'rgba(0, 104, 118, 0.08)',
+                                    padding: '3px 8px',
+                                    borderRadius: '4px'
+                                  }}>
+                                    {rek.nama_bank}
                                   </span>
-                                </label>
+                                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', margin: 0 }} title="Ubah status aktif">
+                                    <input
+                                      type="checkbox"
+                                      checked={!!rek.is_active}
+                                      onChange={function () { handleToggleActiveRekening(rek); }}
+                                      style={{ cursor: 'pointer' }}
+                                    />
+                                    <span style={{ fontSize: '0.72rem', fontWeight: '700', color: rek.is_active ? '#2e7d32' : 'var(--text-muted)' }}>
+                                      {rek.is_active ? 'Aktif' : 'Nonaktif'}
+                                    </span>
+                                  </label>
+                                </div>
+
+                                <div style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '0.5px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                                  {rek.nomor_rekening}
+                                </div>
+                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
+                                  a/n {rek.atas_nama}
+                                </div>
                               </div>
 
-                              <div style={{ fontSize: '1.15rem', fontWeight: '800', letterSpacing: '0.5px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                                {rek.nomor_rekening}
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '14px' }}>
-                                a/n {rek.atas_nama}
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  onClick={function () { handleOpenEditRekening(rek); }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  onClick={function () { handleDeleteRekening(rek); }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
+                                  Hapus
+                                </button>
                               </div>
                             </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                onClick={function () { handleOpenEditRekening(rek); }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>edit</span>
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                onClick={function () { handleDeleteRekening(rek); }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
-                                Hapus
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
+              {/* 7. REMINDER & TEMPLATE TAB */}
+              {activeTab === 'reminder' && (
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Reminder & Pengingat Tagihan</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                    Konfigurasi waktu jatuh tempo dan template pesan penagihan otomatis via Email/WhatsApp.
+                  </p>
+
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Batas Kirim Reminder (Hari sebelum jatuh tempo) *</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <input
+                        type="number"
+                        value={reminder.dueDays}
+                        style={{ width: '100px' }}
+                        onChange={function (e) { setReminder({ ...reminder, dueDays: e.target.value }); }}
+                        min="1"
+                        max="10"
+                        required
+                      />
+                      <span style={{ fontSize: '0.88rem', fontWeight: '600' }}>Hari sebelum tanggal jatuh tempo</span>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* 7. REMINDER & TEMPLATE TAB */}
-            {activeTab === 'reminder' && (
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '6px' }}>Reminder & Pengingat Tagihan</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
-                  Konfigurasi waktu jatuh tempo dan template pesan penagihan otomatis via Email/WhatsApp.
-                </p>
-
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Batas Kirim Reminder (Hari sebelum jatuh tempo) *</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <input
-                      type="number"
-                      value={reminder.dueDays}
-                      style={{ width: '100px' }}
-                      onChange={function (e) { setReminder({ ...reminder, dueDays: e.target.value }); }}
-                      min="1"
-                      max="10"
-                      required
+                  <div className="form-group" style={{ marginBottom: '20px' }}>
+                    <label>Pesan Reminder Otomatis</label>
+                    <textarea
+                      rows="6"
+                      value={reminder.waTemplate}
+                      onChange={function (e) { setReminder({ ...reminder, waTemplate: e.target.value }); }}
+                      placeholder="Tulis format template pesan..."
                     />
-                    <span style={{ fontSize: '0.88rem', fontWeight: '600' }}>Hari sebelum tanggal jatuh tempo</span>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Gunakan placeholder: <code>[Nama]</code> (Nama pelanggan), <code>[Periode]</code> (Bulan tagihan), <code>[Nominal]</code> (Jumlah tagihan), <code>[JatuhTempo]</code> (Tanggal jatuh tempo).
+                    </div>
                   </div>
-                </div>
 
-                <div className="form-group" style={{ marginBottom: '20px' }}>
-                  <label>Pesan Reminder Otomatis</label>
-                  <textarea
-                    rows="6"
-                    value={reminder.waTemplate}
-                    onChange={function (e) { setReminder({ ...reminder, waTemplate: e.target.value }); }}
-                    placeholder="Tulis format template pesan..."
-                  />
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Gunakan placeholder: <code>[Nama]</code> (Nama pelanggan), <code>[Periode]</code> (Bulan tagihan), <code>[Nominal]</code> (Jumlah tagihan), <code>[JatuhTempo]</code> (Tanggal jatuh tempo).
-                  </div>
-                </div>
-
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Pengiriman Otomatis Harian</span>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Aktifkan sistem cron untuk mengirim reminder secara otomatis setiap jam 08:00 pagi.</span>
-                  </div>
-                  <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px', margin: 0 }}>
-                    <input
-                      type="checkbox"
-                      checked={reminder.autoSend}
-                      onChange={function (e) { setReminder({ ...reminder, autoSend: e.target.checked }); }}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span style={{
-                      position: 'absolute',
-                      cursor: 'pointer',
-                      top: 0, left: 0, right: 0, bottom: 0,
-                      backgroundColor: reminder.autoSend ? 'var(--primary)' : '#ccc',
-                      transition: '.3s',
-                      borderRadius: '24px'
-                    }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: '700' }}>Pengiriman Otomatis Harian</span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Aktifkan sistem cron untuk mengirim reminder secara otomatis setiap jam 08:00 pagi.</span>
+                    </div>
+                    <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px', margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={reminder.autoSend}
+                        onChange={function (e) { setReminder({ ...reminder, autoSend: e.target.checked }); }}
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                      />
                       <span style={{
                         position: 'absolute',
-                        content: '""',
-                        height: '18px', width: '18px',
-                        left: reminder.autoSend ? '26px' : '3px',
-                        bottom: '3px',
-                        backgroundColor: 'white',
+                        cursor: 'pointer',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: reminder.autoSend ? 'var(--primary)' : '#ccc',
                         transition: '.3s',
-                        borderRadius: '50%'
-                      }} />
-                    </span>
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* Form Footer Action */}
-            <div style={{
-              marginTop: '30px',
-              borderTop: '1px solid var(--border-color)',
-              paddingTop: '20px',
-              display: 'flex',
-              justifyContent: 'flex-end'
-            }}>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-                style={{ minWidth: '150px' }}
-              >
-                {saving ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <TemplateIcon name="loading" size={16} /> Menyimpan...
+                        borderRadius: '24px'
+                      }}>
+                        <span style={{
+                          position: 'absolute',
+                          content: '""',
+                          height: '18px', width: '18px',
+                          left: reminder.autoSend ? '26px' : '3px',
+                          bottom: '3px',
+                          backgroundColor: 'white',
+                          transition: '.3s',
+                          borderRadius: '50%'
+                        }} />
+                      </span>
+                    </label>
                   </div>
-                ) : 'Simpan Perubahan'}
-              </button>
-            </div>
+                </div>
+              )}
 
-          </form>
-        </div>
+              {/* Form Footer Action */}
+              <div style={{
+                marginTop: '30px',
+                borderTop: '1px solid var(--border-color)',
+                paddingTop: '20px',
+                display: 'flex',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving}
+                  style={{ minWidth: '150px' }}
+                >
+                  {saving ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <TemplateIcon name="loading" size={16} /> Menyimpan...
+                    </div>
+                  ) : 'Simpan Perubahan'}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        )}
       </div>
 
       {/* Rekening Modal Dialog */}

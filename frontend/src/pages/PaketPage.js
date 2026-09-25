@@ -15,7 +15,8 @@ function PaketPage() {
     nama_paket: '',
     harga: '',
     kecepatan: '',
-    deskripsi: ''
+    deskripsi: '',
+    aktif: 1
   });
   var [formError, setFormError] = useState('');
 
@@ -40,7 +41,7 @@ function PaketPage() {
   }
 
   function openAddModal() {
-    setFormData({ nama_paket: '', harga: '', kecepatan: '', deskripsi: '' });
+    setFormData({ nama_paket: '', harga: '', kecepatan: '', deskripsi: '', aktif: 1 });
     setFormError('');
     setEditMode(false);
     setEditId(null);
@@ -52,7 +53,8 @@ function PaketPage() {
       nama_paket: item.nama_paket || '',
       harga: item.harga || '',
       kecepatan: item.kecepatan || '',
-      deskripsi: item.deskripsi || ''
+      deskripsi: item.deskripsi || '',
+      aktif: Number(item.aktif) === 1 ? 1 : 0
     });
     setFormError('');
     setEditMode(true);
@@ -109,7 +111,11 @@ function PaketPage() {
           <h1>Paket Layanan</h1>
           <p>Kelola paket internet yang ditawarkan ke pelanggan.</p>
         </div>
-        <button id="btn-tambah-paket" className="btn btn-primary" onClick={openAddModal}>
+        <button id="btn-tambah-paket" className="btn btn-primary" onClick={openAddModal} style={{
+          background: 'var(--md-primary-fixed)',
+          color: 'var(--md-on-primary-fixed-variant)',
+          fontWeight: '700'
+        }}>
           <TemplateIcon name="plus" size={16} style={{ marginRight: '6px' }} /> Tambah Paket
         </button>
       </div>
@@ -307,6 +313,40 @@ function PaketPage() {
               rows={3}
             />
           </div>
+          {editMode && (
+            <div className="form-group" style={{ marginTop: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                <span>Status Paket</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', fontWeight: 600 }}>
+                  <span style={{ color: formData.aktif ? 'var(--status-hijau)' : 'var(--text-muted)' }}>
+                    {formData.aktif ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.aktif === 1}
+                    aria-label="Status paket"
+                    onClick={function () { setFormData({ ...formData, aktif: formData.aktif ? 0 : 1 }); }}
+                    style={{
+                      width: '44px',
+                      height: '24px',
+                      padding: '3px',
+                      border: 'none',
+                      borderRadius: '999px',
+                      background: formData.aktif ? 'var(--status-hijau)' : 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: formData.aktif ? 'flex-end' : 'flex-start',
+                      alignItems: 'center',
+                      transition: 'background 0.2s ease'
+                    }}
+                  >
+                    <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#fff', display: 'block' }} />
+                  </button>
+                </span>
+              </label>
+            </div>
+          )}
         </form>
       </Modal>
 
@@ -325,7 +365,7 @@ function PaketPage() {
         }
       >
         <p style={{ color: 'var(--text-secondary)' }}>
-          Paket ini akan dinonaktifkan dan tidak bisa dipilih untuk pelanggan baru. Pelanggan yang sudah menggunakan paket ini tidak terpengaruh.
+          Paket ini akan dihapus permanen dan tidak dapat dipulihkan. Data pelanggan tidak akan ikut dihapus.
         </p>
       </Modal>
     </div>
